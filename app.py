@@ -7,24 +7,20 @@ import os
 NEWS_API_URL = "https://api.stockdata.org/v1/news/all"
 API_TOKEN = os.getenv("STOCKDATA_API_TOKEN", "bS2jganHVlFYtAly7ttdHYLrTB0s6BmONWmFEApD")
 
-def fetch_saudi_stock_news(published_after):
+def fetch_saudi_stock_news(published_after, page=1):
     params = {
         "countries": "sa",
         "filter_entities": "true",
-        "limit": 10,
+        "limit": 2,  # Match your plan's limit
+        "page": page,  # Add pagination
         "published_after": published_after,
         "api_token": API_TOKEN
     }
     
     try:
         response = requests.get(NEWS_API_URL, params=params, timeout=10)
-        response.raise_for_status()  # Raise an error for bad status codes
-        news_articles = response.json().get("data", [])
-        
-        # Debug: Print the full API response
-        st.write("API Response:", response.json())
-        
-        return news_articles
+        response.raise_for_status()
+        return response.json().get("data", [])
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to fetch news: {e}")
         return []
@@ -51,10 +47,22 @@ def main():
     published_after = st.date_input("Show news published after:", value=default_date)
     published_after_iso = published_after.isoformat() + "T00:00:00"
     
+    # Initialize session state for pagination
+    if "page" not in st.session_state:
+        st.session_state.page = 1
+    if "news_articles" not in st.session_state:
+        st.session_state.news_articles = []
+    
     if st.button("Fetch Saudi News"):
-        with st.spinner("Fetching news articles..."):
-            news_articles = fetch_saudi_stock_news(published_after_iso)
-            display_news_articles(news_articles)
+        st.session_state.page = 1
+        st.session_state.news_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
+        display_news_articles(st.session_state.news_articles)
+    
+    if st.button("Load More"):
+        st.session_state.page += 1
+        new_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
+        st.session_state.news_articles.extend(new_articles)
+        display_news_articles(st.session_state.news_articles)
 
 if __name__ == "__main__":
     main()
