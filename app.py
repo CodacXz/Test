@@ -1,10 +1,14 @@
 import requests
 import streamlit as st
 from datetime import datetime, timedelta
+from transformers import pipeline
 
-# Use Streamlit secrets for API token, with a fallback for local development
-API_TOKEN = st.secrets.get("STOCKDATA_API_TOKEN", "your_default_api_token_here")
+# Use Streamlit secrets for API token
 NEWS_API_URL = "https://api.stockdata.org/v1/news/all"
+API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]  # Ensure you set this in Streamlit secrets
+
+# Load the sentiment analysis pipeline
+sentiment_pipeline = pipeline("sentiment-analysis")
 
 @st.cache_data(ttl=3600)  # Cache data for 1 hour
 def fetch_saudi_stock_news(published_after, page=1):
@@ -32,9 +36,17 @@ def fetch_saudi_stock_news(published_after, page=1):
         st.error(f"Failed to fetch news: {e}")
         return []
 
+def analyze_sentiment(text):
+    """
+    Analyze sentiment using Hugging Face Transformers.
+    Returns a sentiment label (POSITIVE, NEGATIVE) and confidence score.
+    """
+    result = sentiment_pipeline(text)[0]
+    return result["label"], result["score"]
+
 def display_news_articles(news_articles):
     """
-    Displays news articles with titles, summaries, and links.
+    Displays news articles with titles, summaries, links, and sentiment analysis.
     """
     if news_articles:
         st.success(f"Found {len(news_articles)} articles.")
@@ -46,6 +58,9 @@ def display_news_articles(news_articles):
             st.subheader(title)
             if summary and summary != "No summary available.":
                 st.write(f"**Summary:** {summary}")
+                # Perform sentiment analysis on the summary
+                sentiment, confidence = analyze_sentiment(summary)
+                st.write(f"**Sentiment:** {sentiment} (Confidence: {confidence:.2f})")
             st.write(f"[Read More]({url})")
             st.write("---")
     else:
@@ -68,12 +83,14 @@ def main():
     if "news_articles" not in st.session_state:
         st.session_state.news_articles = []
     
+    # Fetch news on button click
     if st.button("Fetch Saudi News"):
         with st.spinner("Fetching news..."):
             st.session_state.page = 1
             st.session_state.news_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
         display_news_articles(st.session_state.news_articles)
     
+    # Load more news on button click
     if st.button("Load More"):
         with st.spinner("Loading more news..."):
             st.session_state.page += 1
