@@ -1,13 +1,16 @@
 import requests
 import streamlit as st
 from datetime import datetime, timedelta
-import os
 
-# Use environment variables or Streamlit secrets for API token
+# Use Streamlit secrets for API token
 NEWS_API_URL = "https://api.stockdata.org/v1/news/all"
-API_TOKEN = os.getenv("STOCKDATA_API_TOKEN", "bS2jganHVlFYtAly7ttdHYLrTB0s6BmONWmFEApD")
+API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]  # Ensure you set this in Streamlit secrets
 
+@st.cache_data(ttl=3600)  # Cache data for 1 hour
 def fetch_saudi_stock_news(published_after, page=1):
+    """
+    Fetches Saudi stock market news from the StockData API.
+    """
     params = {
         "countries": "sa",
         "filter_entities": "true",
@@ -20,26 +23,39 @@ def fetch_saudi_stock_news(published_after, page=1):
     try:
         response = requests.get(NEWS_API_URL, params=params, timeout=10)
         response.raise_for_status()
-        return response.json().get("data", [])
+        data = response.json()
+        if "data" not in data:
+            st.error("Unexpected API response format.")
+            return []
+        return data.get("data", [])
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to fetch news: {e}")
         return []
 
 def display_news_articles(news_articles):
+    """
+    Displays news articles with titles, summaries, and links.
+    """
     if news_articles:
         st.success(f"Found {len(news_articles)} articles.")
         for article in news_articles:
             title = article["title"]
-            summary = article.get("summary", "No summary available.")
+            # Use summary, description, or snippet as fallback
+            summary = article.get("summary") or article.get("description") or article.get("snippet") or "No summary available."
             url = article["url"]
+            
             st.subheader(title)
-            st.write(f"**Summary:** {summary}")
+            if summary and summary != "No summary available.":
+                st.write(f"**Summary:** {summary}")
             st.write(f"[Read More]({url})")
             st.write("---")
     else:
         st.warning("No news articles found.")
 
 def main():
+    """
+    Main function to run the Streamlit app.
+    """
     st.title("Saudi Stock Market News")
     
     # Allow user to specify a date range
@@ -53,15 +69,19 @@ def main():
     if "news_articles" not in st.session_state:
         st.session_state.news_articles = []
     
+    # Fetch news on button click
     if st.button("Fetch Saudi News"):
-        st.session_state.page = 1
-        st.session_state.news_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
+        with st.spinner("Fetching news..."):
+            st.session_state.page = 1
+            st.session_state.news_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
         display_news_articles(st.session_state.news_articles)
     
+    # Load more news on button click
     if st.button("Load More"):
-        st.session_state.page += 1
-        new_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
-        st.session_state.news_articles.extend(new_articles)
+        with st.spinner("Loading more news..."):
+            st.session_state.page += 1
+            new_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
+            st.session_state.news_articles.extend(new_articles)
         display_news_articles(st.session_state.news_articles)
 
 if __name__ == "__main__":
