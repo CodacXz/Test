@@ -9,7 +9,7 @@ def fetch_saudi_stock_news():
         "countries": "sa",
         "filter_entities": "true",
         "limit": 10,
-        "published_after": "2025-01-20T15:03",
+        "published_after": "2025-01-05T15:03",
         "api_token": API_TOKEN
     }
     
