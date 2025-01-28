@@ -20,6 +20,10 @@ def fetch_saudi_stock_news(published_after):
         response = requests.get(NEWS_API_URL, params=params, timeout=10)
         response.raise_for_status()  # Raise an error for bad status codes
         news_articles = response.json().get("data", [])
+        
+        # Debug: Print the full API response
+        st.write("API Response:", response.json())
+        
         return news_articles
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to fetch news: {e}")
