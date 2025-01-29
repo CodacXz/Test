@@ -7,51 +7,102 @@ from textblob import TextBlob
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
 API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]
 
-st.title("Saudi Stock Market News")
-st.write("Welcome to the Saudi Stock Market News Analyzer!")
-
-# Debug section to verify API token
-st.sidebar.write("Debug Information:")
-if API_TOKEN:
-    st.sidebar.success("API Token loaded successfully")
-else:
-    st.sidebar.error("API Token not found")
-
-# Date selector
-default_date = datetime.now() - timedelta(days=7)
-published_after = st.date_input("Show news published after:", value=default_date)
-published_after_iso = published_after.isoformat() + "T00:00:00"
-
-# Test API connection
-if st.button("Test API Connection"):
+def analyze_sentiment(text):
+    """Analyze sentiment of text using TextBlob"""
     try:
-        params = {
-            "countries": "sa",
-            "filter_entities": "true",
-            "limit": 1,
-            "published_after": published_after_iso,
-            "api_token": API_TOKEN
-        }
-        
-        with st.spinner("Testing API connection..."):
-            response = requests.get(NEWS_API_URL, params=params, timeout=10)
-            if response.status_code == 200:
-                st.success("API connection successful!")
-                st.json(response.json())
-            else:
-                st.error(f"API Error: Status code {response.status_code}")
-                st.write(response.text)
+        analysis = TextBlob(text)
+        # Convert polarity to label and score
+        if analysis.sentiment.polarity > 0:
+            return "POSITIVE", (analysis.sentiment.polarity + 1) / 2
+        elif analysis.sentiment.polarity < 0:
+            return "NEGATIVE", abs(analysis.sentiment.polarity)
+        return "NEUTRAL", 0.5
     except Exception as e:
-        st.error(f"Connection Error: {e}")
+        st.warning(f"Sentiment analysis failed: {e}")
+        return "NEUTRAL", 0.5
 
-# Display basic instructions
-st.markdown("""
-### How to use:
-1. Select a date to show news from
-2. Click 'Test API Connection' to verify the connection
-3. The app will display news articles with sentiment analysis
-""")
+def fetch_news(published_after, limit=10):
+    """Fetch news articles from the API"""
+    params = {
+        "countries": "sa",
+        "filter_entities": "true",
+        "limit": limit,
+        "published_after": published_after,
+        "api_token": API_TOKEN
+    }
+    
+    try:
+        response = requests.get(NEWS_API_URL, params=params, timeout=10)
+        response.raise_for_status()
+        return response.json().get("data", [])
+    except Exception as e:
+        st.error(f"Error fetching news: {e}")
+        return []
 
-# Show app version
-st.sidebar.markdown("---")
-st.sidebar.write("App Version: 1.0.0")
+def display_article(article):
+    """Display a single news article with sentiment analysis"""
+    title = article.get("title", "No title available")
+    description = article.get("description", "No description available")
+    url = article.get("url", "#")
+    published_at = article.get("published_at", "")
+    source = article.get("source", "Unknown source")
+    
+    # Format published date
+    try:
+        published_date = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%S.%fZ")
+        published_str = published_date.strftime("%Y-%m-%d %H:%M")
+    except:
+        published_str = published_at
+
+    # Article container
+    with st.container():
+        st.subheader(title)
+        st.write(f"**Source:** {source} | **Published:** {published_str}")
+        
+        # Description and sentiment
+        if description:
+            st.write(description)
+            sentiment, score = analyze_sentiment(description)
+            col1, col2 = st.columns(2)
+            col1.metric("Sentiment", sentiment)
+            col2.metric("Confidence", f"{score:.2%}")
+        
+        # Link to full article
+        st.markdown(f"[Read full article]({url})")
+        st.markdown("---")
+
+def main():
+    st.title("Saudi Stock Market News")
+    st.write("Real-time news analysis for Saudi stock market")
+
+    # Sidebar configuration
+    st.sidebar.title("Settings")
+    limit = st.sidebar.slider("Number of articles", 1, 20, 10)
+    
+    # Date selection
+    default_date = datetime.now() - timedelta(days=7)
+    published_after = st.date_input("Show news published after:", value=default_date)
+    published_after_iso = published_after.isoformat() + "T00:00:00"
+
+    # Fetch and display news
+    if st.button("Fetch News"):
+        with st.spinner("Fetching latest news..."):
+            news_articles = fetch_news(published_after_iso, limit)
+            
+            if news_articles:
+                st.success(f"Found {len(news_articles)} articles")
+                for article in news_articles:
+                    display_article(article)
+            else:
+                st.warning("No news articles found for the selected date range")
+
+    # App information
+    st.sidebar.markdown("---")
+    st.sidebar.write("App Version: 1.0.1")
+    if API_TOKEN:
+        st.sidebar.success("API Token loaded successfully")
+    else:
+        st.sidebar.error("API Token not found")
+
+if __name__ == "__main__":
+    main()
