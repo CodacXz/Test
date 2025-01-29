@@ -1,16 +1,33 @@
 import requests
 import streamlit as st
 from datetime import datetime, timedelta
-from transformers import pipeline
+from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
 
-# Use Streamlit secrets for API token
-NEWS_API_URL = "https://api.marketaux.com/v1/news/all?countries=sa&filter_entities=true&limit=10&published_after=2025-01-28T14:44&api_token=YOUR_API_TOKEN"
-API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]  # Ensure you set this in Streamlit secrets
+# API Configuration
+NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
+API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]
 
-# Load the sentiment analysis pipeline
-sentiment_pipeline = pipeline("sentiment-analysis")
+@st.cache_resource
+def load_sentiment_model():
+    """
+    Loads and caches the sentiment analysis model
+    """
+    try:
+        # Specify a specific model for sentiment analysis
+        model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+        model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        
+        return pipeline(
+            "sentiment-analysis",
+            model=model,
+            tokenizer=tokenizer
+        )
+    except Exception as e:
+        st.error(f"Error loading sentiment model: {e}")
+        return None
 
-@st.cache_data(ttl=3600)  # Cache data for 1 hour
+@st.cache_data(ttl=3600)
 def fetch_saudi_stock_news(published_after, page=1):
     """
     Fetches Saudi stock market news from the StockData API.
@@ -18,8 +35,8 @@ def fetch_saudi_stock_news(published_after, page=1):
     params = {
         "countries": "sa",
         "filter_entities": "true",
-        "limit": 2,  # Match your plan's limit
-        "page": page,  # Add pagination
+        "limit": 2,
+        "page": page,
         "published_after": published_after,
         "api_token": API_TOKEN
     }
@@ -36,15 +53,21 @@ def fetch_saudi_stock_news(published_after, page=1):
         st.error(f"Failed to fetch news: {e}")
         return []
 
-def analyze_sentiment(text):
+def analyze_sentiment(text, sentiment_analyzer):
     """
-    Analyze sentiment using Hugging Face Transformers.
-    Returns a sentiment label (POSITIVE, NEGATIVE) and confidence score.
+    Analyze sentiment using the provided sentiment analyzer.
     """
-    result = sentiment_pipeline(text)[0]
-    return result["label"], result["score"]
+    if sentiment_analyzer is None:
+        return "N/A", 0.0
+    
+    try:
+        result = sentiment_analyzer(text)[0]
+        return result["label"], result["score"]
+    except Exception as e:
+        st.warning(f"Sentiment analysis failed: {e}")
+        return "ERROR", 0.0
 
-def display_news_articles(news_articles):
+def display_news_articles(news_articles, sentiment_analyzer):
     """
     Displays news articles with titles, summaries, links, and sentiment analysis.
     """
@@ -59,8 +82,9 @@ def display_news_articles(news_articles):
             if summary and summary != "No summary available.":
                 st.write(f"**Summary:** {summary}")
                 # Perform sentiment analysis on the summary
-                sentiment, confidence = analyze_sentiment(summary)
-                st.write(f"**Sentiment:** {sentiment} (Confidence: {confidence:.2f})")
+                sentiment, confidence = analyze_sentiment(summary, sentiment_analyzer)
+                if sentiment != "ERROR":
+                    st.write(f"**Sentiment:** {sentiment} (Confidence: {confidence:.2f})")
             st.write(f"[Read More]({url})")
             st.write("---")
     else:
@@ -72,31 +96,6 @@ def main():
     """
     st.title("Saudi Stock Market News")
     
-    # Allow user to specify a date range
-    default_date = datetime.now() - timedelta(days=7)
-    published_after = st.date_input("Show news published after:", value=default_date)
-    published_after_iso = published_after.isoformat() + "T00:00:00"
-    
-    # Initialize session state for pagination
-    if "page" not in st.session_state:
-        st.session_state.page = 1
-    if "news_articles" not in st.session_state:
-        st.session_state.news_articles = []
-    
-    # Fetch news on button click
-    if st.button("Fetch Saudi News"):
-        with st.spinner("Fetching news..."):
-            st.session_state.page = 1
-            st.session_state.news_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
-        display_news_articles(st.session_state.news_articles)
-    
-    # Load more news on button click
-    if st.button("Load More"):
-        with st.spinner("Loading more news..."):
-            st.session_state.page += 1
-            new_articles = fetch_saudi_stock_news(published_after_iso, st.session_state.page)
-            st.session_state.news_articles.extend(new_articles)
-        display_news_articles(st.session_state.news_articles)
-
-if __name__ == "__main__":
-    main()
+    # Load sentiment analyzer
+    sentiment_analyzer = load_sentiment_model()
+    if
