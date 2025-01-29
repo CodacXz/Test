@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from transformers import pipeline
 
 # Use Streamlit secrets for API token
-NEWS_API_URL = "https://api.stockdata.org/v1/news/all"
+NEWS_API_URL = "https://api.marketaux.com/v1/news/all?countries=sa&filter_entities=true&limit=10&published_after=2025-01-28T14:44&api_token=YOUR_API_TOKEN"
 API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]  # Ensure you set this in Streamlit secrets
 
 # Load the sentiment analysis pipeline
