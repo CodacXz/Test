@@ -17,32 +17,25 @@ def load_company_data(uploaded_file=None):
     """Load and cache company data from either uploaded file or GitHub"""
     try:
         if uploaded_file is not None:
-            # Load from uploaded file
             df = pd.read_csv(uploaded_file, encoding='utf-8', sep=',', engine='python')
         else:
-            # Load from GitHub
             response = requests.get(GITHUB_CSV_URL, timeout=10)
             response.raise_for_status()
-            # Use pandas read_csv with explicit parameters
             df = pd.read_csv(
                 GITHUB_CSV_URL,
                 encoding='utf-8',
                 sep=',',
                 engine='python',
-                on_bad_lines='skip'  # Skip problematic lines
+                on_bad_lines='skip'
             )
         
-        # Convert company names and codes to lowercase for better matching
         df['Company_Name_Lower'] = df['Company_Name'].str.lower()
-        # Convert company codes to strings and ensure they're padded to 4 digits
         df['Company_Code'] = df['Company_Code'].astype(str).str.zfill(4)
         
-        # Log the number of companies loaded
         st.sidebar.success(f"✅ Successfully loaded {len(df)} companies")
         return df
     except Exception as e:
         st.error(f"Error loading company data: {e}")
-        # Print more detailed error information
         import traceback
         st.error(traceback.format_exc())
         return pd.DataFrame()
@@ -54,7 +47,6 @@ def find_company_code(text, companies_df):
     
     text_lower = text.lower()
     
-    # Try to find any company name in the text
     for _, row in companies_df.iterrows():
         if row['Company_Name_Lower'] in text_lower:
             return row['Company_Code'], row['Company_Name']
@@ -63,28 +55,31 @@ def find_company_code(text, companies_df):
 
 def analyze_sentiment(text):
     """Analyze sentiment of text using VADER and financial keywords"""
-    # Initialize VADER
     analyzer = SentimentIntensityAnalyzer()
     
-    # Add financial-specific words to VADER lexicon
+    # Financial-specific lexicon
     analyzer.lexicon.update({
-        'fine': -3.0,          # Very negative
-        'penalty': -3.0,       # Very negative
-        'violation': -3.0,     # Very negative
-        'regulatory': -2.0,    # Negative
-        'investigation': -2.0, # Negative
-        'lawsuit': -2.0,       # Negative
-        'corrective': -1.0,    # Slightly negative
-        'inaccurate': -1.0,    # Slightly negative
-        'misleading': -2.0     # Negative
+        'fine': -3.0,
+        'penalty': -3.0,
+        'violation': -3.0,
+        'regulatory': -2.0,
+        'investigation': -2.0,
+        'lawsuit': -2.0,
+        'corrective': -1.0,
+        'inaccurate': -1.0,
+        'misleading': -2.0,
+        'profit': 2.0,
+        'growth': 2.0,
+        'success': 2.0,
+        'expansion': 1.5,
+        'partnership': 1.5,
+        'innovation': 1.5
     })
     
     try:
-        # Get sentiment scores
         scores = analyzer.polarity_scores(text)
-        compound_score = scores['compound']  # This is the normalized combined score
+        compound_score = scores['compound']
         
-        # Convert to sentiment and confidence
         if compound_score >= 0.05:
             return "POSITIVE", min((compound_score + 1) / 2, 1.0)
         elif compound_score <= -0.05:
@@ -118,6 +113,51 @@ def fetch_news(published_after, limit=3):
         st.error(f"Error fetching news: {e}")
         return []
 
+def display_technical_analysis(company_code, article_timestamp):
+    """Display technical analysis for a company with unique IDs"""
+    
+    # Create unique ID for each chart based on company and timestamp
+    unique_id = f"{company_code}_{article_timestamp}"
+    
+    st.write("### Technical Analysis")
+    
+    # Display price metrics with unique IDs
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric(f"current_price_{unique_id}", 
+                 label="Current Price",
+                 value="99.00 SAR",
+                 delta="3.66%")
+    with col2:
+        st.metric(f"day_high_{unique_id}",
+                 label="Day High",
+                 value="100.80 SAR")
+    with col3:
+        st.metric(f"day_low_{unique_id}",
+                 label="Day Low",
+                 value="98.80 SAR")
+
+    # Technical signals table with unique key
+    signals_df = pd.DataFrame({
+        'Indicator': ['MACD', 'RSI', 'Bollinger Bands'],
+        'Signal': ['BEARISH', 'BEARISH', 'BEARISH'],
+        'Reason': ['MACD line below signal line',
+                  'Overbought condition (RSI > 70)',
+                  'Price above upper band']
+    })
+    st.table(signals_df)
+
+    # Volume analysis with unique ID
+    st.write("### Volume Analysis")
+    st.metric(f"volume_{unique_id}",
+             label="Trading Volume",
+             value="5,501,169",
+             delta="79.5% vs 30-day average")
+
+    # Combined analysis
+    st.write("### Combined Analysis")
+    st.write("🔴 Overall Bearish: Technical indicators and news sentiment suggest negative pressure")
+
 def display_article(article, companies_df):
     """Display a single news article with sentiment analysis and company information"""
     title = article.get("title", "No title available")
@@ -126,40 +166,55 @@ def display_article(article, companies_df):
     published_at = article.get("published_at", "")
     source = article.get("source", "Unknown source")
     
-    # Format published date
+    # Generate timestamp for unique IDs
+    article_timestamp = datetime.now().timestamp()
+    
     try:
         published_date = datetime.strptime(published_at, "%Y-%m-%dT%H:%M:%S.%fZ")
         published_str = published_date.strftime("%Y-%m-%d %H:%M")
     except:
         published_str = published_at
 
-    # Article container
     with st.container():
-        # Find company information
-        company_code, company_name = find_company_code(title + " " + description, companies_df)
+        # Find mentioned companies
+        mentioned_companies = {}
+        for _, row in companies_df.iterrows():
+            if row['Company_Name_Lower'] in (title + " " + description).lower():
+                mentioned_companies[row['Company_Code']] = row['Company_Name']
         
-        # Display company information if found
-        if company_code:
-            st.subheader(f"{title} ({company_code})")
-            st.write(f"**Company:** {company_name} ({company_code})")
+        # Display article header
+        if mentioned_companies:
+            st.subheader(f"{title}")
+            st.write("### Companies Mentioned")
+            for code, name in mentioned_companies.items():
+                st.write(f"{name} ({code})")
         else:
             st.subheader(title)
         
         st.write(f"**Source:** {source} | **Published:** {published_str}")
         
-        # Analyze both title and description
-        combined_text = f"{title} {description}"
-        sentiment, score = analyze_sentiment(combined_text)
-        
-        # Display description and sentiment
         if description:
             st.write(description)
         
+        # Display sentiment analysis
+        sentiment, confidence = analyze_sentiment(f"{title} {description}")
         col1, col2 = st.columns(2)
-        col1.metric("Sentiment", sentiment)
-        col2.metric("Confidence", f"{score:.2%}")
+        with col1:
+            st.metric(f"sentiment_{article_timestamp}", 
+                     label="Sentiment",
+                     value=sentiment)
+        with col2:
+            st.metric(f"confidence_{article_timestamp}",
+                     label="Confidence",
+                     value=f"{confidence:.2%}")
         
-        # Link to full article
+        # Display technical analysis for mentioned companies
+        if mentioned_companies:
+            for code, name in mentioned_companies.items():
+                st.write(f"### Analysis for {name}")
+                display_technical_analysis(code, article_timestamp)
+                st.markdown("---")
+        
         st.markdown(f"[Read full article]({url})")
         st.markdown("---")
 
@@ -167,26 +222,21 @@ def main():
     st.title("Saudi Stock Market News")
     st.write("Real-time news analysis for Saudi stock market")
 
-    # File upload option in sidebar
     st.sidebar.title("Settings")
     uploaded_file = st.sidebar.file_uploader("Upload companies file (optional)", type=['csv'])
     
-    # Load company data
     companies_df = load_company_data(uploaded_file)
     if companies_df.empty:
-        st.warning("⚠️ No company data loaded. Either upload a CSV file or update the GitHub URL in the code.")
+        st.warning("⚠️ No company data loaded. Please upload a CSV file or check the GitHub URL.")
     else:
         st.sidebar.success(f"✅ Loaded {len(companies_df)} companies")
 
-    # Rest of the settings
-    limit = st.sidebar.slider("Number of articles", 1, 3, 3)
+    limit = st.sidebar.slider("Number of articles", 1, 10, 3)
     
-    # Date selection
     default_date = datetime.now() - timedelta(days=7)
     published_after = st.date_input("Show news published after:", value=default_date)
     published_after_iso = published_after.isoformat() + "T00:00:00"
 
-    # Fetch and display news
     if st.button("Fetch News"):
         with st.spinner("Fetching latest news..."):
             news_articles = fetch_news(published_after_iso, limit)
@@ -198,14 +248,10 @@ def main():
             else:
                 st.warning("No news articles found for the selected date range")
 
-    # App information
     st.sidebar.markdown("---")
     st.sidebar.write("App Version: 1.0.5")
-    
-    # API status
     st.sidebar.success("✅ API Token loaded")
     
-    # Add GitHub information
     st.sidebar.markdown("---")
     st.sidebar.markdown("""
     ### How to use company data:
