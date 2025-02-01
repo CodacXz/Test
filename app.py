@@ -8,15 +8,38 @@ NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
 API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]
 
 def analyze_sentiment(text):
-    """Analyze sentiment of text using TextBlob"""
+    """Analyze sentiment of text using TextBlob and financial keywords"""
+    # Financial negative keywords
+    negative_keywords = ['fine', 'penalty', 'violation', 'failed', 'failure', 'loss', 'decline', 
+                        'debt', 'investigation', 'lawsuit', 'regulatory action', 'corrective', 
+                        'inaccurate', 'misleading']
+    
+    # Financial positive keywords
+    positive_keywords = ['profit', 'growth', 'increase', 'success', 'expansion', 'dividend', 
+                        'earnings', 'upgrade', 'innovation', 'partnership']
+    
+    # Count keyword occurrences
+    text_lower = text.lower()
+    negative_count = sum(1 for word in negative_keywords if word in text_lower)
+    positive_count = sum(1 for word in positive_keywords if word in text_lower)
+    
     try:
+        # Get TextBlob sentiment
         analysis = TextBlob(text)
-        # Convert polarity to label and score
-        if analysis.sentiment.polarity > 0:
-            return "POSITIVE", (analysis.sentiment.polarity + 1) / 2
-        elif analysis.sentiment.polarity < 0:
-            return "NEGATIVE", abs(analysis.sentiment.polarity)
+        base_polarity = analysis.sentiment.polarity
+        
+        # Adjust polarity based on financial keywords
+        keyword_adjustment = (positive_count - negative_count) * 0.2
+        final_polarity = base_polarity + keyword_adjustment
+        
+        # Convert adjusted polarity to label and score
+        if final_polarity > 0:
+            confidence = (final_polarity + 1) / 2
+            return "POSITIVE", min(confidence, 1.0)
+        elif final_polarity < 0:
+            return "NEGATIVE", min(abs(final_polarity), 1.0)
         return "NEUTRAL", 0.5
+        
     except Exception as e:
         st.warning(f"Sentiment analysis failed: {e}")
         return "NEUTRAL", 0.5
@@ -59,13 +82,17 @@ def display_article(article):
         st.subheader(title)
         st.write(f"**Source:** {source} | **Published:** {published_str}")
         
-        # Description and sentiment
+        # Analyze both title and description
+        combined_text = f"{title} {description}"
+        sentiment, score = analyze_sentiment(combined_text)
+        
+        # Display description and sentiment
         if description:
             st.write(description)
-            sentiment, score = analyze_sentiment(description)
-            col1, col2 = st.columns(2)
-            col1.metric("Sentiment", sentiment)
-            col2.metric("Confidence", f"{score:.2%}")
+        
+        col1, col2 = st.columns(2)
+        col1.metric("Sentiment", sentiment)
+        col2.metric("Confidence", f"{score:.2%}")
         
         # Link to full article
         st.markdown(f"[Read full article]({url})")
