@@ -7,7 +7,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # API Configuration
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]
+API_TOKEN = st.secrets["MARKETAUX_API_KEY"]
 
 # GitHub raw file URL for the companies CSV file
 GITHUB_CSV_URL = "https://raw.githubusercontent.com/CodacXz/Test/main/saudi_companies.csv?raw=true"
@@ -96,14 +96,14 @@ def analyze_sentiment(text):
         st.warning(f"Sentiment analysis failed: {e}")
         return "NEUTRAL", 0.5
 
-def fetch_news(published_after, limit=10):
-    """Fetch news articles from the API"""
+def fetch_news(published_after, limit=3):
+    """Fetch news articles from MarketAux API"""
     params = {
+        "api_token": API_TOKEN,
         "countries": "sa",
         "filter_entities": "true",
         "limit": limit,
-        "published_after": published_after,
-        "api_token": API_TOKEN
+        "published_after": published_after
     }
     
     try:
@@ -196,11 +196,13 @@ def main():
 
     # App information
     st.sidebar.markdown("---")
-    st.sidebar.write("App Version: 1.0.2")
+    st.sidebar.write("App Version: 1.0.5")
+    
+    # API status
     if API_TOKEN:
-        st.sidebar.success("API Token loaded successfully")
+        st.sidebar.success("✅ API Token loaded")
     else:
-        st.sidebar.error("API Token not found")
+        st.sidebar.error("⚠️ API Token not found")
 
     # Add GitHub information
     st.sidebar.markdown("---")
