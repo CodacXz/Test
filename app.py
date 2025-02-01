@@ -7,7 +7,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # API Configuration
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-API_TOKEN = st.secrets["MARKETAUX_API_KEY"]
+API_TOKEN = st.secrets.get("MARKETAUX_API_KEY", "")  # Use get() with default empty string
 
 # GitHub raw file URL for the companies CSV file
 GITHUB_CSV_URL = "https://raw.githubusercontent.com/CodacXz/Test/main/saudi_companies.csv?raw=true"
@@ -98,6 +98,10 @@ def analyze_sentiment(text):
 
 def fetch_news(published_after, limit=3):
     """Fetch news articles from MarketAux API"""
+    if not API_TOKEN:
+        st.error("Please set up your MarketAux API key in .streamlit/secrets.toml")
+        return []
+        
     params = {
         "api_token": API_TOKEN,
         "countries": "sa",
