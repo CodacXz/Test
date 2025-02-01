@@ -2,172 +2,207 @@ Company_Code,Company_Name
 1010,Riyad Bank
 1020,Bank Aljazira
 1030,Saudi Investment Bank
-1040,Saudi Hollandi Bank
 1050,Banque Saudi Fransi
-1060,Saudi British Bank
+1060,SABB
 1080,Arab National Bank
-1090,Samba Financial Group
 1120,Al Rajhi Bank
 1140,Bank Albilad
 1150,Alinma Bank
-1180,National Commercial Bank
-1201,Takween Advanced Industries Co.
-1202,Middle East Paper Co.
-1210,Basic Chemical Industries Co.
-1211,Saudi Arabian Mining Co.
-1212,Astra Industrial Group
-1213,Al Sorayai Trading and Industrial Group
-1214,Al Hassan Ghazi Ibrahim Shaker Co.
-1301,United Wire Factories Co.
-1302,Bawan Co.
-1303,Electrical Industries Co.
-1310,Mohammad Al Mojil Group
-1320,Saudi Steel Pipe Co.
-1330,Abdullah A. M. Al-Khodari Sons Co.
-1810,Altayyar Travel Group
-1820,Abdulmohsen Alhokair Group for Tourism and Development
-2001,Methanol Chemicals Co.
-2002,National Petrochemical Co.
-2010,Saudi Basic Industries Corp.
-2020,Saudi Arabia Fertilizers Co.
-2030,Saudi Arabia Refineries Co.
-2040,Saudi Ceramic Co.
-2050,Savola Group
-2060,National Industrialization Co.
-2070,Saudi Pharmaceutical Industries and Medical Appliances Corp.
-2080,National Gas and Industrialization Co.
-2090,National Gypsum Co.
-2100,Wafrah for Industry and Development Co.
-2110,Saudi Cable Co.
-2120,Saudi Advanced Industries Co.
-2130,Saudi Industrial Development Co.
-2140,Al-Ahsa Development Co.
-2150,The National Company for Glass Industries
-2160,Saudi Arabian Amiantit Co.
-2170,Alujain Corp.
-2180,Filing and Packing Materials Manufacturing Co.
-2190,Saudi Industrial Services Co.
-2200,Arabian Pipes Co.
-2210,Nama Chemicals Co.
-2220,National Metal Manufacturing and Casting Co.
-2230,Saudi Chemical Co.
-2240,Zamil Industrial Investment Co.
-2250,Saudi Industrial Investment Group
-2260,Sahara Petrochemical Co.
-2270,Saudia Dairy and Foodstuff Co.
-2280,Almarai Co.
-2290,Yanbu National Petrochemical Co.
-2300,Saudi Paper Manufacturing Co.
-2310,Saudi International Petrochemical Co.
-2320,Al-Babtain Power and Telecommunication Co.
-2330,Advanced Petrochemical Co.
-2340,Al Abdullatif Industrial Investment Co.
-2350,Saudi Kayan Petrochemical Co.
-2360,Saudi Vitrified Clay Pipes Co.
-2370,Middle East Specialized Cables Co.
-2380,Rabigh Refining and Petrochemical Co.
-3001,Hail Cement Co.
-3002,Najran Cement Co.
-3003,City Cement Co.
-3004,Northern Region Cement Co.
-3005,Umm Al-Qura Cement Co.
-3010,Arabian Cement Co.
-3020,Yamama Cement Co.
-3030,Saudi Cement Co.
-3040,Qassim Cement Co.
-3050,Southern Province Cement Co.
-3060,Yanbu Cement Co.
-3080,Eastern Province Cement Co.
-3090,Tabuk Cement Co.
-3091,Al Jouf Cement Co.
-4001,Abdullah Al Othaim Markets Co.
-4002,Mouwasat Medical Services Co.
-4003,United Electronics Co.
-4004,Dallah Healthcare Holding Co.
-4005,National Medical Care Co.
-4006,Saudi Marketing Co.
-4007,Al Hammadi Company for Development and Investment
-4008,Saudi Company for Hardware
-4010,Dur Hospitality Co.
-4020,Saudi Real Estate Co.
-4030,National Shipping Company of Saudi Arabia
-4031,Saudi Ground Services Co.
-4040,Saudi Public Transport Co.
-4050,Saudi Automotive Services Co.
-4061,Anaam International Holding Group
-4070,Tihama Advertising and Public Relations Co.
-4080,Aseer Trading, Tourism and Manufacturing Co.
-4090,Taiba Holding Co.
-4100,Makkah Construction and Development Co.
-4110,Saudi Transport and Investment Co.
-4130,Al-Baha Investment and Development Co.
-4140,Saudi Industrial Export Co.
-4150,Arriyadh Development Co.
-4160,National Agricultural Marketing Co.
-4170,Tourism Enterprise Co.
-4180,Fitaihi Holding Group
-4190,Jarir Marketing Co.
-4200,Aldrees Petroleum and Transport Services Co.
-4210,Saudi Research and Marketing Group
-4220,Emaar The Economic City
-4230,Red Sea Housing Services Co.
-4240,Fawaz Abdulaziz Alhokair Co.
-4250,Jabal Omar Development Co.
-4260,United International Transportation Co.
-4270,Saudi Printing and Packaging Co.
-4280,Kingdom Holding Co.
-4290,Alkhaleej Training and Education Co.
-4300,Dar Alarkan Real Estate Development Co.
-4310,Knowledge Economic City
-4320,Alandalus Property Co.
-5110,Saudi Electricity Co.
-6001,Halwani Bros. Co.
-6002,Herfy Food Services Co.
-6004,Saudi Airlines Catering Co.
-6010,National Agricultural Development Co.
-6020,Qassim Agricultural Co.
-6040,Tabuk Agricultural Development Co.
-6050,Saudi Fisheries Co.
-6060,Ash-Sharqiyah Development Co.
-6070,Al-Jouf Agricultural Development Co.
-6080,Bishah Agricultural Development Co.
-6090,Jazan Development Co.
-7010,Saudi Telecom Co.
-7020,Etihad Etisalat Co.
-7030,Mobile Telecommunication Company Saudi Arabia
-7040,Etihad Atheeb Telecommunication Co.
-8010,The Company for Cooperative Insurance
-8011,MetLife AIG ANB Cooperative Insurance Co.
-8012,Aljazira Takaful Taawuni Co.
-8020,Malath Cooperative Insurance and Reinsurance Co.
-8030,The Mediterranean and Gulf Insurance and Reinsurance Co.
-8040,Allianz Saudi Fransi Cooperative Insurance Co.
-8050,Salama Cooperative Insurance Co.
-8060,Saudi United Cooperative Insurance Co.
-8070,Arabian Shield Cooperative Insurance Co.
-8080,SABB Takaful Co.
-8090,Sanad Cooperative Insurance Co.
-8100,Saudi Arabian Cooperative Insurance Co.
-8110,Saudi Indian Company for Cooperative Insurance
-8120,Gulf Union Cooperative Insurance Co.
-8130,Alahli Takaful Co.
-8140,Al-Ahlia Insurance Co.
-8150,Allied Cooperative Insurance Group
-8160,Arabia Insurance Cooperative Co.
-8170,Trade Union Cooperative Insurance Co.
-8180,Al Sagr Cooperative Insurance Co.
-8190,United Cooperative Assurance Co.
-8200,Saudi Re for Cooperative Reinsurance Co.
-8210,Bupa Arabia for Cooperative Insurance Co.
-8220,Weqaya Takaful Insurance and Reinsurance Co.
-8230,Al-Rajhi Company for Cooperative Insurance
-8240,ACE Arabia Cooperative Insurance Co.
-8250,AXA Cooperative Insurance Co.
-8260,Gulf General Cooperative Insurance Co.
-8270,Buruj Cooperative Insurance Co.
-8280,Al Alamiya for Cooperative Insurance Co.
-8290,Solidarity Saudi Takaful Co.
-8300,Wataniya Insurance Co.
-8310,Amana Cooperative Insurance Co.
-8311,Saudi Enaya Cooperative Insurance Co.
-8312,Alinma Tokio Marine Co.
+1180,Saudi National Bank
+1182,Aljazira Takaful
+1183,Malath Insurance
+1201,Saudi Re
+1202,Saudi Enaya
+1210,Bupa Arabia
+1211,Walaa Insurance
+1301,Kingdom Holding
+1810,SEERA
+1820,National Gas
+1830,Saudi Advanced
+2001,Petrochem
+2002,SABIC
+2010,SAFCO
+2020,SAAC
+2030,Saudi Cement
+2040,Yanbu Cement
+2050,Eastern Cement
+2060,Qassim Cement
+2080,Southern Cement
+2090,Tabuk Cement
+2130,Saudi Industrial
+2150,NAMA Chemicals
+2170,Alujain
+2180,Filing & Packing
+2200,Arabian Pipes
+2210,NAMA Industrial
+2220,Red Sea Housing
+2230,Saudi Industrial Dev
+2240,Zamil Industrial
+2250,SIIG
+2290,Yanbu National
+2300,SPM
+2310,Sipchem
+2330,Advanced
+2350,Saudi Kayan
+2380,Petro Rabigh
+3001,HCC
+3002,Najran Cement
+3003,City Cement
+3004,Northern Cement
+3005,Umm Al-Qura
+3007,Zahrat Al Waha
+3008,Al-Jouf Cement
+3010,Arabian Cement
+3020,Yamama Cement
+3030,Saudi Ceramics
+3040,Saudi Pharma
+3050,Glass
+3060,Fipco
+3080,SPPC
+3090,National Metal
+4001,ASTRA Industrial
+4002,AlSorayai
+4003,Extra
+4004,SACO
+4005,SADAFCO
+4006,Farm Superstores
+4007,Dallah Health
+4008,SASCO
+4009,Thimar
+4010,Jarir
+4011,Aldrees
+4012,Seven
+4013,AlHokair
+4014,Alhokair Group
+4015,AlKhaleej Training
+4016,Ataa Educational
+4017,Riyad REIT
+4018,Jadwa REIT
+4019,Taleem REIT
+4020,Dur
+4021,MEDGULF
+4022,Ayyan
+4023,AlRajhi REIT
+4024,Musharaka REIT
+4031,Saudi Airlines Catering
+4032,Saudi Ground Services
+4033,Saudi Public Transport
+4034,Batic
+4035,Saudi Automotive
+4036,Theeb Rent a Car
+4037,Alhammadi
+4038,Raydan
+4040,SEICO
+4041,Mouwasat
+4042,Tourism Enterprise
+4043,Arabian Centres
+4044,AlMoammar Information
+4045,Dallah Health
+4046,Elm
+4050,SADR
+4051,Baazeem
+4052,Tanmiah Food
+4061,AnNai
+4070,Tihama
+4071,CGS
+4072,Ash-Sharqiyah Dev
+4073,National Building
+4080,Aseer
+4081,Taiba
+4082,MCDC
+4090,Tabuk Agriculture
+4100,Jazan Energy
+4110,Bishaco
+4130,Al-Baha
+4140,SRMG
+4141,CPC
+4142,Shams
+4150,GACO
+4160,Thob Al Aseel
+4161,NGCO
+4162,Fawaz Alhokair
+4163,Fitaihi Group
+4164,Bindawood
+4170,Taco
+4180,Fitness Time
+4190,Herfy Food
+4191,Abdullah Al Othaim Markets
+4192,AlMarai
+4200,Nadec
+4210,QGC
+4220,Emaar EC
+4230,Red Sea
+4240,Alandalus
+4250,Jabal Omar
+4261,Themar
+4270,AECO
+4280,Alkhbeer REIT
+4281,TaalCom
+4282,East Pipes
+4283,Tanmiah
+4284,Alamar Foods
+4285,Naba
+4286,Retal
+4287,KEIR
+4288,Lumi
+4290,Almunajem Foods
+4291,BinDawood
+4292,Nahdi Medical
+4293,Saudi Tadawul Group
+4294,Gas Arabian Services
+4295,Flow Logistics
+4296,Al Dawaa Medical Services
+4297,Jamjoom Pharma
+4298,Perfect Foods
+4299,Amwaj
+4300,Riyadh Cables Group
+4301,Knowledge Tower
+4302,Avalon Pharma
+4303,ADES Holding
+4304,SAL Saudi Logistics Services
+4305,Industrialization & Energy Services
+4306,MBC Group
+4307,Arabian International Healthcare
+4308,NOMU - Nofoth Food Products
+4309,NOMU - Banan Real Estate
+4310,NOMU - Canadian Medical Center
+4311,NOMU - Molan Steel
+4312,NOMU - Natural Gas Distribution
+4313,NOMU - Saudi Parts Center
+4314,NOMU - Arabian Food & Dairy Factories
+4315,NOMU - Alhasoob
+4316,NOMU - National Environmental Recycling
+4317,NOMU - Saudi Azm
+4318,NOMU - Horizon Food
+4319,NOMU - Saudi Networkers Services
+4320,NOMU - International Human Resources
+4321,NOMU - Group Five Pipe Saudi
+4322,NOMU - Ladun Investment
+4323,NOMU - Arabian Plastic Industrial
+4324,NOMU - Al-Omran Trading
+4325,NOMU - Raoom Trading
+4326,NOMU - Al Ramz Real Estate
+4327,NOMU - Enayah Al Oula Medical
+4328,NOMU - Future Care Trading
+4329,NOMU - Naba Alsaha Medical Services
+4330,NOMU - Arab Sea Information System
+4331,NOMU - Aqaseem Factory
+4332,NOMU - Premium Brands
+4333,NOMU - Alwasail Industrial
+4334,NOMU - National Housing Company
+4335,NOMU - Rawasi Albina Investment
+4336,NOMU - Sigma Advanced Industries
+4337,NOMU - Mayar Holding
+4338,NOMU - Watani Iron Steel
+4339,NOMU - Mohammed Al Hammadi
+4340,NOMU - Obeikan Glass
+4341,NOMU - Fahd Al-Tuwaijri & Partners
+4342,NOMU - Saudi Auto Services
+4343,NOMU - Luberef
+4344,NOMU - Arabian International
+4345,NOMU - ADES Industrial
+4346,NOMU - Alrajhi Steel
+4347,NOMU - Mobi Industry
+4348,NOMU - NOMU - Alwatani Equity Fund
+4349,NOMU - NOMU - Bonyan REIT Fund
+4350,NOMU - NOMU - Derayah REIT Fund
