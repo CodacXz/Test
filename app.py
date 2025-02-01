@@ -44,7 +44,6 @@ def main():
         # Show API token status with more detail
         if api_token:
             st.success("✅ API Token loaded")
-            # Show last 4 characters of token
             masked_token = "•" * (len(api_token)-4) + api_token[-4:]
             st.code(f"Token: {masked_token}")
         else:
@@ -79,20 +78,34 @@ def main():
     if not companies_df.empty:
         st.success(f"✅ Successfully loaded {len(companies_df)} companies")
     
-    # Date picker for news
-    published_after = st.date_input("Show news published after:", 
-                                  value=datetime.now() - timedelta(days=7),
-                                  max_value=datetime.now())
+    # Search controls
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        published_after = st.date_input("Show news published after:", 
+                                      value=datetime.now() - timedelta(days=7),
+                                      max_value=datetime.now())
+    with col2:
+        st.write("")  # Add some spacing
+        st.write("")  # Add some spacing
+        fetch_clicked = st.button("🔄 Fetch News", type="primary", use_container_width=True)
     
-    # Fetch and display news
-    articles = fetch_news(api_token, published_after.strftime("%Y/%m/%d"), num_articles)
+    # Initialize session state for articles if it doesn't exist
+    if 'articles' not in st.session_state:
+        st.session_state.articles = []
     
-    if articles:
-        st.write(f"\nFound {len(articles)} articles\n")
+    # Fetch news when button is clicked
+    if fetch_clicked:
+        with st.spinner("Fetching latest news..."):
+            articles = fetch_news(api_token, published_after.strftime("%Y/%m/%d"), num_articles)
+            st.session_state.articles = articles
+    
+    # Display articles
+    if st.session_state.articles:
+        st.write(f"\nFound {len(st.session_state.articles)} articles\n")
         
         # Articles Summary
         st.markdown("### 📰 News Summary")
-        for i, article in enumerate(articles):
+        for i, article in enumerate(st.session_state.articles):
             title = article.get("title", "No title")
             source = article.get("source", "Unknown")
             published_at = article.get("published_at", "")[:16]
@@ -127,13 +140,16 @@ def main():
         
         # Detailed Article Analysis
         st.markdown("### 📊 Detailed Analysis")
-        article_tabs = st.tabs([f"Article {i+1}" for i in range(len(articles))])
+        article_tabs = st.tabs([f"Article {i+1}" for i in range(len(st.session_state.articles))])
         
-        for tab, article in zip(article_tabs, articles):
+        for tab, article in zip(article_tabs, st.session_state.articles):
             with tab:
                 display_article(article, companies_df)
     else:
-        st.info("No articles found for the selected date range")
+        if fetch_clicked:
+            st.info("No articles found for the selected date range")
+        else:
+            st.info("Click 'Fetch News' to load articles")
 
 def load_company_data(uploaded_file=None):
     """Load company data from file or GitHub"""
