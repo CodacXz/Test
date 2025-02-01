@@ -326,6 +326,9 @@ def main():
         
         st.write(f"Found {len(news_data)} articles")
         
+        # Keep track of analyzed companies to avoid duplicates
+        analyzed_companies = set()
+        
         # Process each article
         for article_idx, article in enumerate(news_data):
             with st.container():
@@ -351,28 +354,130 @@ def main():
                 # Company Analysis
                 entities = article.get('entities', [])
                 if entities:
-                    # Get unique companies
-                    seen_companies = set()
                     unique_companies = []
                     for entity in entities:
                         symbol = entity.get('symbol')
-                        if symbol and symbol not in seen_companies:
-                            seen_companies.add(symbol)
+                        if symbol and symbol not in analyzed_companies:
+                            analyzed_companies.add(symbol)
                             unique_companies.append(entity)
                     
                     if unique_companies:
                         st.write("### Companies Mentioned")
                         for company in unique_companies:
                             st.write(f"**{company.get('name')} ({company.get('symbol')})**")
-                        
-                        # Create tabs for company analysis
-                        company_tabs = st.tabs([company.get('name', 'Company') for company in unique_companies])
-                        
-                        for company_idx, (company, tab) in enumerate(zip(unique_companies, company_tabs)):
-                            with tab:
-                                analyze_company(company, f"{article_idx}_{company_idx}")
+                            
+                            try:
+                                symbol = company.get('symbol')
+                                df, error = get_stock_data(f"{symbol}.SR")
+                                
+                                if error:
+                                    st.error(error)
+                                    continue
+                                    
+                                if df is not None and not df.empty:
+                                    latest_price = df['Close'][-1]
+                                    price_change = ((latest_price - df['Close'][-2])/df['Close'][-2]*100)
+                                    
+                                    cols = st.columns(3)
+                                    with cols[0]:
+                                        st.metric(
+                                            "Current Price",
+                                            f"{latest_price:.2f} SAR",
+                                            f"{price_change:.2f}%"
+                                        )
+                                    with cols[1]:
+                                        st.metric(
+                                            "Day High",
+                                            f"{df['High'][-1]:.2f} SAR"
+                                        )
+                                    with cols[2]:
+                                        st.metric(
+                                            "Day Low",
+                                            f"{df['Low'][-1]:.2f} SAR"
+                                        )
+                                    
+                                    # Technical Analysis
+                                    signals = []
+                                    
+                                    # MACD
+                                    macd_signal = "BULLISH" if df['MACD'][-1] > df['MACD_Signal'][-1] else "BEARISH"
+                                    signals.append({
+                                        'Indicator': 'MACD',
+                                        'Signal': macd_signal,
+                                        'Reason': f"MACD line {'above' if macd_signal == 'BULLISH' else 'below'} signal line"
+                                    })
+                                    
+                                    # RSI
+                                    rsi = df['RSI'][-1]
+                                    if rsi > 70:
+                                        signals.append({
+                                            'Indicator': 'RSI',
+                                            'Signal': 'BEARISH',
+                                            'Reason': 'Overbought condition (RSI > 70)'
+                                        })
+                                    elif rsi < 30:
+                                        signals.append({
+                                            'Indicator': 'RSI',
+                                            'Signal': 'BULLISH',
+                                            'Reason': 'Oversold condition (RSI < 30)'
+                                        })
+                                    else:
+                                        signals.append({
+                                            'Indicator': 'RSI',
+                                            'Signal': 'NEUTRAL',
+                                            'Reason': 'RSI in neutral zone'
+                                        })
+                                    
+                                    # Bollinger Bands
+                                    if df['Close'][-1] > df['BB_upper'][-1]:
+                                        signals.append({
+                                            'Indicator': 'Bollinger Bands',
+                                            'Signal': 'BEARISH',
+                                            'Reason': 'Price above upper band'
+                                        })
+                                    elif df['Close'][-1] < df['BB_lower'][-1]:
+                                        signals.append({
+                                            'Indicator': 'Bollinger Bands',
+                                            'Signal': 'BULLISH',
+                                            'Reason': 'Price below lower band'
+                                        })
+                                    else:
+                                        signals.append({
+                                            'Indicator': 'Bollinger Bands',
+                                            'Signal': 'NEUTRAL',
+                                            'Reason': 'Price within bands'
+                                        })
+                                    
+                                    st.write("### Technical Analysis")
+                                    signals_df = pd.DataFrame(signals)
+                                    st.dataframe(signals_df)
+                                    
+                                    # Stock chart
+                                    fig = go.Figure()
+                                    fig.add_trace(go.Candlestick(
+                                        x=df.index,
+                                        open=df['Open'],
+                                        high=df['High'],
+                                        low=df['Low'],
+                                        close=df['Close'],
+                                        name='Price'
+                                    ))
+                                    
+                                    fig.update_layout(
+                                        title=None,
+                                        yaxis_title='Price (SAR)',
+                                        xaxis_title='Date',
+                                        template='plotly_dark',
+                                        height=400,
+                                        margin=dict(t=0)
+                                    )
+                                    
+                                    st.plotly_chart(fig, use_container_width=True)
+                                    
+                            except Exception as e:
+                                st.error(f"Error analyzing {company.get('name')}: {str(e)}")
                 
-                st.markdown("[Read full article]({url})")
+                st.markdown(f"[Read full article]({url})")
                 st.markdown("---")
 
 if __name__ == "__main__":
