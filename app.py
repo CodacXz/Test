@@ -18,24 +18,33 @@ def load_company_data(uploaded_file=None):
     try:
         if uploaded_file is not None:
             # Load from uploaded file
-            df = pd.read_csv(uploaded_file)
+            df = pd.read_csv(uploaded_file, encoding='utf-8', sep=',', engine='python')
         else:
             # Load from GitHub
             response = requests.get(GITHUB_CSV_URL, timeout=10)
-            response.raise_for_status()  # Raise an exception for bad status codes
-            # Use utf-8-sig encoding to handle any BOM characters
-            df = pd.read_csv(io.StringIO(response.text.encode('utf-8').decode('utf-8-sig')))
+            response.raise_for_status()
+            # Use pandas read_csv with explicit parameters
+            df = pd.read_csv(
+                GITHUB_CSV_URL,
+                encoding='utf-8',
+                sep=',',
+                engine='python',
+                on_bad_lines='skip'  # Skip problematic lines
+            )
         
         # Convert company names and codes to lowercase for better matching
         df['Company_Name_Lower'] = df['Company_Name'].str.lower()
         # Convert company codes to strings and ensure they're padded to 4 digits
         df['Company_Code'] = df['Company_Code'].astype(str).str.zfill(4)
         
-        # Log the loaded companies for debugging
-        st.write("Loaded companies:", df['Company_Name'].tolist())
+        # Log the number of companies loaded
+        st.sidebar.success(f"✅ Successfully loaded {len(df)} companies")
         return df
     except Exception as e:
         st.error(f"Error loading company data: {e}")
+        # Print more detailed error information
+        import traceback
+        st.error(traceback.format_exc())
         return pd.DataFrame()
 
 def find_company_code(text, companies_df):
