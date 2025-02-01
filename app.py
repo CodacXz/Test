@@ -319,163 +319,176 @@ def display_article(article, companies_df):
     source = article.get("source", "Unknown")
     published_at = article.get("published_at", "")
     
+    # Article header with metadata
     st.markdown(f"## {title}")
-    st.write(f"Source: {source} | Published: {published_at[:16]}")
-    st.write(description[:200] + "..." if len(description) > 200 else description)
+    st.markdown(f"**Source:** {source} | **Published:** {published_at[:16]}")
     
-    # Sentiment Analysis
-    sentiment, confidence = analyze_sentiment(title + " " + description)
+    # Article description in a quote block
+    st.markdown("> " + (description[:200] + "..." if len(description) > 200 else description))
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("### Sentiment Analysis")
-        sentiment_color = {
-            "POSITIVE": "green",
-            "NEGATIVE": "red",
-            "NEUTRAL": "gray"
-        }.get(sentiment, "black")
+    # Analysis container
+    with st.container():
+        # Two columns: Sentiment and Companies Overview
+        col1, col2 = st.columns([1, 2])
         
-        st.markdown(f"**Sentiment:** :{sentiment_color}[{sentiment}]")
-        st.markdown(f"**Confidence:** {confidence:.1f}%")
-    
-    # Find mentioned companies
-    mentioned_companies = find_companies_in_text(title + " " + description, companies_df)
-    
-    if mentioned_companies:
-        st.markdown("### Companies Mentioned")
-        for company in mentioned_companies:
-            st.markdown(f"- {company['name']} ({company['symbol']})")
+        with col1:
+            # Sentiment Analysis card
+            st.markdown("### 📊 Sentiment Analysis")
+            sentiment, confidence = analyze_sentiment(title + " " + description)
+            
+            sentiment_color = {
+                "POSITIVE": "green",
+                "NEGATIVE": "red",
+                "NEUTRAL": "gray"
+            }.get(sentiment, "black")
+            
+            st.markdown(f"**Sentiment:** :{sentiment_color}[{sentiment}]")
+            st.markdown(f"**Confidence:** {confidence:.1f}%")
         
-        st.markdown("### Stock Analysis")
-        tabs = st.tabs([company['name'] for company in mentioned_companies])
+        # Find mentioned companies
+        mentioned_companies = find_companies_in_text(title + " " + description, companies_df)
         
-        for tab, company in zip(tabs, mentioned_companies):
-            with tab:
-                df, error = get_stock_data(company['code'])
-                if error:
-                    st.error(f"Error fetching stock data: {error}")
-                    continue
-                
-                if df is not None:
-                    # Price Analysis
-                    latest_price = df['Close'][-1]
-                    prev_price = df['Close'][-2]
-                    price_change = ((latest_price - prev_price)/prev_price*100)
+        if mentioned_companies:
+            with col2:
+                st.markdown("### 🏢 Companies Overview")
+                # Create a metric row for each company's current status
+                metrics_cols = st.columns(len(mentioned_companies))
+                for i, company in enumerate(mentioned_companies):
+                    df, error = get_stock_data(company['code'])
+                    if df is not None and not error:
+                        latest_price = df['Close'][-1]
+                        prev_price = df['Close'][-2]
+                        price_change = ((latest_price - prev_price)/prev_price*100)
+                        with metrics_cols[i]:
+                            st.metric(
+                                f"{company['name']} ({company['symbol']})",
+                                f"{latest_price:.2f} SAR",
+                                f"{price_change:.2f}%"
+                            )
+        
+        # Detailed company analysis
+        if mentioned_companies:
+            st.markdown("### 📈 Detailed Analysis")
+            
+            # Create tabs for each company
+            company_tabs = st.tabs([company['name'] for company in mentioned_companies])
+            
+            for tab, company in zip(company_tabs, mentioned_companies):
+                with tab:
+                    df, error = get_stock_data(company['code'])
+                    if error:
+                        st.error(f"Error fetching stock data: {error}")
+                        continue
                     
-                    # Price metrics
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Current Price", f"{latest_price:.2f} SAR", 
-                                f"{price_change:.2f}%")
-                    with col2:
-                        st.metric("Day High", f"{df['High'][-1]:.2f} SAR")
-                    with col3:
-                        st.metric("Day Low", f"{df['Low'][-1]:.2f} SAR")
-                    
-                    # Technical Analysis
-                    signals = analyze_technical_indicators(df)
-                    
-                    # Signal counts
-                    signal_counts = {
-                        "BULLISH": len([s for s in signals if s[1] == "BULLISH"]),
-                        "BEARISH": len([s for s in signals if s[1] == "BEARISH"]),
-                        "NEUTRAL": len([s for s in signals if s[1] == "NEUTRAL"])
-                    }
-                    
-                    # Technical Overview
-                    st.markdown("### Technical Overview")
-                    tech_cols = st.columns(3)
-                    with tech_cols[0]:
-                        st.metric("Bullish Signals", signal_counts["BULLISH"])
-                    with tech_cols[1]:
-                        st.metric("Bearish Signals", signal_counts["BEARISH"])
-                    with tech_cols[2]:
-                        st.metric("Neutral Signals", signal_counts["NEUTRAL"])
-                    
-                    # Plot stock chart
-                    fig = plot_stock_analysis(df, company['name'], company['symbol'])
-                    st.plotly_chart(fig)
-                    
-                    # Technical Analysis Signals
-                    st.markdown("### Technical Analysis Signals")
-                    signal_df = pd.DataFrame(signals, columns=['Indicator', 'Signal', 'Reason'])
-                    st.table(signal_df)
-                    
-                    # Combined Analysis
-                    st.markdown("### Combined Analysis")
-                    signal, detail = get_combined_analysis(signals, sentiment, confidence)
-                    st.markdown(f"**{signal}**")
-                    st.markdown(f"*{detail}*")
-                    
-                    # Volume Analysis
-                    avg_volume = df['Volume'].mean()
-                    latest_volume = df['Volume'][-1]
-                    volume_change = ((latest_volume - avg_volume) / avg_volume) * 100
-                    
-                    st.markdown("### Volume Analysis")
-                    st.metric("Trading Volume", f"{int(latest_volume):,}", 
-                             f"{volume_change:.1f}% vs 30-day average")
+                    if df is not None:
+                        # Technical Analysis
+                        signals = analyze_technical_indicators(df)
+                        
+                        # Main content columns
+                        chart_col, analysis_col = st.columns([2, 1])
+                        
+                        with chart_col:
+                            # Price Chart
+                            fig = plot_stock_analysis(df, company['name'], company['symbol'])
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                            # Price metrics row
+                            metrics_cols = st.columns(4)
+                            with metrics_cols[0]:
+                                st.metric("Day High", f"{df['High'][-1]:.2f} SAR")
+                            with metrics_cols[1]:
+                                st.metric("Day Low", f"{df['Low'][-1]:.2f} SAR")
+                            with metrics_cols[2]:
+                                avg_volume = df['Volume'].mean()
+                                latest_volume = df['Volume'][-1]
+                                volume_change = ((latest_volume - avg_volume) / avg_volume) * 100
+                                st.metric("Volume", f"{int(latest_volume):,}", 
+                                        f"{volume_change:.1f}% vs avg")
+                            with metrics_cols[3]:
+                                volatility = df['Close'].pct_change().std() * 100
+                                st.metric("Volatility", f"{volatility:.1f}%")
+                        
+                        with analysis_col:
+                            # Technical Signals
+                            st.markdown("#### Technical Signals")
+                            signal_df = pd.DataFrame(signals, columns=['Indicator', 'Signal', 'Reason'])
+                            st.table(signal_df)
+                            
+                            # Combined Analysis
+                            st.markdown("#### Combined Analysis")
+                            signal, detail = get_combined_analysis(signals, sentiment, confidence)
+                            st.info(f"**{signal}**\n\n{detail}")
     
-    st.markdown(f"[Read full article]({url})")
+    # Article link
     st.markdown("---")
+    st.markdown(f"[Read full article]({url})")
 
 def main():
+    st.set_page_config(page_title="Saudi Stock Market News", page_icon="📈", layout="wide")
+    
     st.title("Saudi Stock Market News")
-    st.write("Real-time news analysis for Saudi stock market")
-
-    # File upload option in sidebar
-    st.sidebar.title("Settings")
-    uploaded_file = st.sidebar.file_uploader("Upload companies file (optional)", type=['csv'])
+    st.markdown("Real-time news analysis for Saudi stock market")
     
-    # Load company data
-    companies_df = load_company_data(uploaded_file)
-    if companies_df.empty:
-        st.warning("⚠️ No company data loaded. Either upload a CSV file or update the GitHub URL in the code.")
-    else:
-        st.sidebar.success(f"✅ Loaded {len(companies_df)} companies")
-
-    # Rest of the settings
-    limit = st.sidebar.slider("Number of articles", 1, 3, 3)
-    
-    # Date selection
-    default_date = datetime.now() - timedelta(days=7)
-    published_after = st.date_input("Show news published after:", value=default_date)
-    published_after_iso = published_after.isoformat() + "T00:00:00"
-
-    # Fetch and display news
-    if st.button("Fetch News"):
-        with st.spinner("Fetching latest news..."):
-            news_articles = fetch_news(published_after_iso, limit)
+    # Sidebar configuration
+    with st.sidebar:
+        st.header("Settings")
+        
+        # File uploader
+        uploaded_file = st.file_uploader("Upload companies file (optional)", 
+                                       type=['csv'], 
+                                       help="CSV format: Company_Code,Company_Name")
+        
+        # Number of articles slider
+        num_articles = st.slider("Number of articles", 1, 10, 3)
+        
+        # Version info
+        st.markdown("App Version: 1.0.5")
+        
+        # Show API token status
+        if 'MARKETAUX_TOKEN' in st.secrets:
+            st.success("✅ API Token loaded")
+        else:
+            st.error("❌ API Token missing")
+        
+        # Help section
+        with st.expander("How to use company data"):
+            st.write("""
+            Option 1: Upload CSV file using the uploader above
+            Option 2: Add file to GitHub and update GITHUB_CSV_URL
             
-            if news_articles:
-                st.success(f"Found {len(news_articles)} articles")
-                for article in news_articles:
-                    display_article(article, companies_df)
-            else:
-                st.warning("No news articles found for the selected date range")
-
-    # App information
-    st.sidebar.markdown("---")
-    st.sidebar.write("App Version: 1.0.5")
+            CSV file format:
+            ```
+            Company_Code,Company_Name
+            1010,Riyad Bank
+            1020,Bank Aljazira
+            ...
+            ```
+            """)
     
-    # API status
-    st.sidebar.success("✅ API Token loaded")
+    # Load companies data
+    companies_df = load_company_data(uploaded_file)
+    if not companies_df.empty:
+        st.success(f"✅ Successfully loaded {len(companies_df)} companies")
     
-    # Add GitHub information
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("""
-    ### How to use company data:
-    1. **Option 1:** Upload CSV file using the uploader above
-    2. **Option 2:** Add file to GitHub and update `GITHUB_CSV_URL`
+    # Date picker for news
+    published_after = st.date_input("Show news published after:", 
+                                  value=datetime.now() - timedelta(days=7),
+                                  max_value=datetime.now())
     
-    CSV file format:
-    ```
-    Company_Code,Company_Name
-    1010,Riyad Bank
-    1020,Bank Aljazira
-    ...
-    ```
-    """)
+    # Fetch and display news
+    articles = fetch_news(published_after.strftime("%Y/%m/%d"), num_articles)
+    
+    if articles:
+        st.write(f"\nFound {len(articles)} articles\n")
+        
+        # Create tabs for each article
+        article_tabs = st.tabs([f"Article {i+1}" for i in range(len(articles))])
+        
+        for tab, article in zip(article_tabs, articles):
+            with tab:
+                display_article(article, companies_df)
+    else:
+        st.info("No articles found for the selected date range")
 
 if __name__ == "__main__":
     main()
