@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 
 # Constants
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-GITHUB_CSV_URL = "https://raw.githubusercontent.com/saudistocks/stock_data/main/data/saudi_companies.csv"
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/saudistocks/stock_data/main/saudi_companies.csv"
 COMPANIES_FILE = "saudi_companies.csv"  # Local companies data file
 
 def main():
@@ -89,8 +89,7 @@ def main():
         published_after = st.date_input(
             "Show news published after:",
             value=default_date,
-            max_value=datetime.now(),
-            format="YYYY-MM-DD"  # Explicitly set format
+            max_value=datetime.now()
         )
     with col2:
         st.write("")  # Add some spacing
@@ -104,10 +103,11 @@ def main():
     # Fetch news when button is clicked
     if fetch_clicked:
         with st.spinner("Fetching latest news..."):
-            # Convert date to string in correct format
+            # Format date as YYYY-MM-DD
             date_str = published_after.strftime("%Y-%m-%d")
             articles = fetch_news(api_token, date_str, num_articles)
-            st.session_state.articles = articles
+            if articles:  # Only update if we got articles
+                st.session_state.articles = articles
     
     # Display articles
     if st.session_state.articles:
@@ -232,6 +232,10 @@ def fetch_news(api_token, published_after, limit=3):
     try:
         st.info(f"Fetching news published after {published_after}...")  # Debug info
         response = requests.get(NEWS_API_URL, params=params)
+        
+        # Debug info
+        st.code(f"Request URL: {response.url}")
+        
         data = response.json()
         
         if 'error' in data:
