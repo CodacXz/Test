@@ -21,7 +21,7 @@ def main():
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
     
     # Get API token from secrets
-    API_TOKEN = st.secrets.get("MARKETAUX_TOKEN", "")
+    api_token = st.secrets.get("MARKETAUX_TOKEN", "")
     
     st.title("Saudi Stock Market News")
     st.markdown("Real-time news analysis for Saudi stock market")
@@ -41,11 +41,23 @@ def main():
         # Version info
         st.markdown("App Version: 1.0.5")
         
-        # Show API token status
-        if API_TOKEN:
+        # Show API token status with more detail
+        if api_token:
             st.success("✅ API Token loaded")
+            # Show last 4 characters of token
+            masked_token = "•" * (len(api_token)-4) + api_token[-4:]
+            st.code(f"Token: {masked_token}")
         else:
             st.error("❌ API Token missing")
+            with st.expander("How to add your API token"):
+                st.markdown("""
+                1. Get your API token from [MarketAux](https://www.marketaux.com/)
+                2. Create a file `.streamlit/secrets.toml`
+                3. Add this line:
+                ```toml
+                MARKETAUX_TOKEN = "your_api_token_here"
+                ```
+                """)
         
         # Help section
         with st.expander("How to use company data"):
@@ -73,7 +85,7 @@ def main():
                                   max_value=datetime.now())
     
     # Fetch and display news
-    articles = fetch_news(API_TOKEN, published_after.strftime("%Y/%m/%d"), num_articles)
+    articles = fetch_news(api_token, published_after.strftime("%Y/%m/%d"), num_articles)
     
     if articles:
         st.write(f"\nFound {len(articles)} articles\n")
@@ -124,16 +136,55 @@ def main():
         st.info("No articles found for the selected date range")
 
 def load_company_data(uploaded_file=None):
+    """Load company data from file or GitHub"""
     try:
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
+            st.success(f"✅ Successfully loaded {len(df)} companies from uploaded file")
         else:
-            df = pd.read_csv(GITHUB_CSV_URL)
+            try:
+                df = pd.read_csv(GITHUB_CSV_URL)
+                st.success(f"✅ Successfully loaded {len(df)} companies from GitHub")
+            except Exception as e:
+                st.warning("Could not load companies from GitHub. Using backup data.")
+                # Load from backup URL
+                backup_url = "https://raw.githubusercontent.com/saudistocks/stock_data/main/data/companies.csv"
+                try:
+                    df = pd.read_csv(backup_url)
+                    st.success(f"✅ Successfully loaded {len(df)} companies from backup source")
+                except Exception as e:
+                    st.error("❌ Failed to load companies data from all sources")
+                    return pd.DataFrame()
+
+        # Ensure required columns exist
+        required_columns = ['Company_Code', 'Company_Name']
+        if not all(col in df.columns for col in required_columns):
+            st.error("❌ Invalid CSV format. Required columns: Company_Code, Company_Name")
+            return pd.DataFrame()
+
+        # Clean and format data
+        df['Company_Code'] = df['Company_Code'].astype(str).str.zfill(4)
+        df['Company_Name'] = df['Company_Name'].str.strip()
+        
         return df
+        
+    except pd.errors.EmptyDataError:
+        st.error("❌ The file is empty")
+        return pd.DataFrame()
+    except pd.errors.ParserError:
+        st.error("❌ Could not parse the CSV file. Please check the format")
+        return pd.DataFrame()
     except Exception as e:
+        st.error(f"❌ Error loading company data: {str(e)}")
         return pd.DataFrame()
 
 def fetch_news(api_token, published_after, limit=3):
+    """Fetch news articles from MarketAux API"""
+    if not api_token:
+        st.error("❌ API Token is missing. Please add your MarketAux API token to .streamlit/secrets.toml")
+        st.info("Add this line to your secrets.toml:\nMARKETAUX_TOKEN = 'your_api_token_here'")
+        return []
+        
     params = {
         "api_token": api_token,
         "countries": "sa",
@@ -145,8 +196,34 @@ def fetch_news(api_token, published_after, limit=3):
     try:
         response = requests.get(NEWS_API_URL, params=params)
         data = response.json()
-        return data.get("data", [])
+        
+        if 'error' in data:
+            st.error(f"API Error: {data['error'].get('message', 'Unknown error')}")
+            return []
+            
+        articles = data.get("data", [])
+        if not articles:
+            st.warning("No articles found. This could be because:")
+            st.markdown("""
+            1. No news articles for the selected date range
+            2. API rate limit reached
+            3. API token may be invalid
+            
+            Try:
+            - Selecting an earlier date
+            - Checking your API token
+            - Waiting a few minutes if you've made many requests
+            """)
+        return articles
+        
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network Error: Could not connect to the news API. {str(e)}")
+        return []
+    except ValueError as e:
+        st.error(f"Data Error: Could not parse API response. {str(e)}")
+        return []
     except Exception as e:
+        st.error(f"Unexpected Error: {str(e)}")
         return []
 
 def analyze_sentiment(text):
