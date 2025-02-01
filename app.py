@@ -481,7 +481,43 @@ def main():
     if articles:
         st.write(f"\nFound {len(articles)} articles\n")
         
-        # Create tabs for each article
+        # Articles Summary
+        st.markdown("### 📰 News Summary")
+        for i, article in enumerate(articles):
+            title = article.get("title", "No title")
+            source = article.get("source", "Unknown")
+            published_at = article.get("published_at", "")[:16]
+            
+            # Get sentiment
+            sentiment, confidence = analyze_sentiment(title + " " + article.get("description", ""))
+            sentiment_color = {
+                "POSITIVE": "green",
+                "NEGATIVE": "red",
+                "NEUTRAL": "gray"
+            }.get(sentiment, "black")
+            
+            # Find companies
+            mentioned_companies = find_companies_in_text(
+                title + " " + article.get("description", ""), 
+                companies_df
+            )
+            
+            # Create summary card
+            with st.container():
+                st.markdown(f"#### {i+1}. {title}")
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    st.markdown(f"**Source:** {source} | **Published:** {published_at}")
+                with col2:
+                    st.markdown(f"**Sentiment:** :{sentiment_color}[{sentiment}] ({confidence:.1f}%)")
+                with col3:
+                    if mentioned_companies:
+                        company_names = [f"`{c['symbol']}`" for c in mentioned_companies]
+                        st.markdown(f"**Companies:** {', '.join(company_names)}")
+                st.markdown("---")
+        
+        # Detailed Article Analysis
+        st.markdown("### 📊 Detailed Analysis")
         article_tabs = st.tabs([f"Article {i+1}" for i in range(len(articles))])
         
         for tab, article in zip(article_tabs, articles):
