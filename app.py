@@ -186,3 +186,8 @@ def display_article(article, companies_df):
     # Article link
     st.markdown(f"[Read full article]({url})", key=f"link_{title[:20]}")
     st.markdown("---", key=f"divider_{title[:20]}")
+
+# Fetch and display news articles
+articles = fetch_news()
+for article in articles:
+    display_article(article, companies_df)
