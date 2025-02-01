@@ -77,6 +77,10 @@ def main():
     # Load companies data
     companies_df = load_company_data(uploaded_file)
     
+    if companies_df.empty:
+        st.error("❌ No company data available. Please upload a CSV file or check the error messages above.")
+        st.stop()
+    
     # Search controls
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
@@ -163,16 +167,30 @@ def load_company_data(uploaded_file=None):
         if uploaded_file is not None:
             df = pd.read_csv(uploaded_file)
             st.success(f"✅ Successfully loaded {len(df)} companies from uploaded file")
-        else:
-            # Try loading from local file first
-            try:
-                df = pd.read_csv(COMPANIES_FILE, encoding='utf-8')
-                st.success(f"✅ Successfully loaded {len(df)} companies from local file")
-                return df
-            except Exception as e:
-                st.error("❌ Failed to load companies data")
-                st.info("Please upload a companies CSV file using the uploader in the sidebar")
-                return pd.DataFrame()
+            return df
+        
+        # Try loading from local file
+        try:
+            df = pd.read_csv(COMPANIES_FILE, encoding='utf-8')
+            st.success(f"✅ Successfully loaded {len(df)} companies from local file")
+            return df
+        except FileNotFoundError:
+            st.warning("Local companies file not found, trying GitHub...")
+        except Exception as e:
+            st.warning(f"Error reading local file: {str(e)}, trying GitHub...")
+        
+        # Try loading from GitHub
+        try:
+            df = pd.read_csv(GITHUB_CSV_URL)
+            # Save to local file for future use
+            df.to_csv(COMPANIES_FILE, index=False, encoding='utf-8')
+            st.success(f"✅ Successfully loaded {len(df)} companies from GitHub")
+            return df
+        except Exception as e:
+            st.error("❌ Failed to load companies data")
+            st.error(f"Error details: {str(e)}")
+            st.info("Please upload a companies CSV file using the uploader in the sidebar")
+            return pd.DataFrame()
 
         # Ensure required columns exist
         required_columns = ['Company_Code', 'Company_Name']
