@@ -175,7 +175,7 @@ def main():
         st.sidebar.success(f"✅ Loaded {len(companies_df)} companies")
 
     # Rest of the settings
-    limit = st.sidebar.slider("Number of articles", 1, 20, 10)
+    limit = st.sidebar.slider("Number of articles", 1, 3, 3)
     
     # Date selection
     default_date = datetime.now() - timedelta(days=7)
