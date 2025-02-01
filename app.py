@@ -424,6 +424,10 @@ def display_article(article, companies_df):
     st.markdown(f"[Read full article]({url})")
 
 def main():
+    # Load custom CSS
+    with open('style.css') as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    
     st.set_page_config(page_title="Saudi Stock Market News", page_icon="📈", layout="wide")
     
     st.title("Saudi Stock Market News")
