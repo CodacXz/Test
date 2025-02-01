@@ -268,6 +268,49 @@ def plot_stock_analysis(df, company_name, symbol):
     
     return fig
 
+def get_combined_analysis(signals, sentiment, confidence):
+    """Calculate combined analysis considering both technical and sentiment signals"""
+    # Count technical signals
+    signal_counts = {
+        "BULLISH": len([s for s in signals if s[1] == "BULLISH"]),
+        "BEARISH": len([s for s in signals if s[1] == "BEARISH"]),
+        "NEUTRAL": len([s for s in signals if s[1] == "NEUTRAL"])
+    }
+    
+    # Calculate technical score (-1 to 1)
+    tech_score = (signal_counts["BULLISH"] - signal_counts["BEARISH"]) / len(signals)
+    
+    # Calculate sentiment score (-1 to 1)
+    sentiment_score = {
+        "POSITIVE": 1,
+        "NEGATIVE": -1,
+        "NEUTRAL": 0
+    }.get(sentiment, 0)
+    
+    # Adjust sentiment impact based on confidence
+    sentiment_score *= (confidence / 100)
+    
+    # Weighted combination (60% technical, 40% sentiment)
+    combined_score = (0.6 * tech_score) + (0.4 * sentiment_score)
+    
+    # Generate analysis message
+    tech_summary = "Technical Analysis: "
+    if tech_score < -0.3:
+        tech_summary += "Bearish"
+    elif tech_score > 0.3:
+        tech_summary += "Bullish"
+    else:
+        tech_summary += "Neutral"
+    
+    sentiment_summary = f"News Sentiment: {sentiment} ({confidence:.1f}% confidence)"
+    
+    if combined_score > 0.2:
+        return "🟢 Overall Bullish", f"{tech_summary} | {sentiment_summary}"
+    elif combined_score < -0.2:
+        return "🔴 Overall Bearish", f"{tech_summary} | {sentiment_summary}"
+    else:
+        return "🟡 Neutral", f"{tech_summary} | {sentiment_summary}"
+
 def display_article(article, companies_df):
     """Display news article with sentiment and technical analysis"""
     title = article.get("title", "No title")
@@ -332,7 +375,7 @@ def display_article(article, companies_df):
                     # Technical Analysis
                     signals = analyze_technical_indicators(df)
                     
-                    # Count bullish vs bearish signals
+                    # Signal counts
                     signal_counts = {
                         "BULLISH": len([s for s in signals if s[1] == "BULLISH"]),
                         "BEARISH": len([s for s in signals if s[1] == "BEARISH"]),
@@ -360,18 +403,9 @@ def display_article(article, companies_df):
                     
                     # Combined Analysis
                     st.markdown("### Combined Analysis")
-                    tech_score = (signal_counts["BULLISH"] - signal_counts["BEARISH"]) / len(signals)
-                    news_score = 1 if sentiment == "POSITIVE" else -1 if sentiment == "NEGATIVE" else 0
-                    
-                    # Weight technical analysis more heavily (70/30 split)
-                    combined_score = (0.7 * tech_score) + (0.3 * news_score)
-                    
-                    if combined_score > 0.3:
-                        st.success("🟢 Overall Bullish: Technical indicators and news sentiment suggest positive momentum")
-                    elif combined_score < -0.3:
-                        st.error("🔴 Overall Bearish: Technical indicators and news sentiment suggest negative pressure")
-                    else:
-                        st.warning("🟡 Neutral: Mixed signals from technical indicators and news sentiment")
+                    signal, detail = get_combined_analysis(signals, sentiment, confidence)
+                    st.markdown(f"**{signal}**")
+                    st.markdown(f"*{detail}*")
                     
                     # Volume Analysis
                     avg_volume = df['Volume'].mean()
