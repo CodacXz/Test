@@ -10,7 +10,7 @@ NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
 API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]
 
 # GitHub raw file URL for the companies CSV file
-GITHUB_CSV_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/saudi_companies.csv"
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/CodacXz/Test/main/saudi_companies.csv?raw=true"
 
 @st.cache_data
 def load_company_data(uploaded_file=None):
@@ -21,14 +21,18 @@ def load_company_data(uploaded_file=None):
             df = pd.read_csv(uploaded_file)
         else:
             # Load from GitHub
-            response = requests.get(GITHUB_CSV_URL)
+            response = requests.get(GITHUB_CSV_URL, timeout=10)
             response.raise_for_status()  # Raise an exception for bad status codes
-            df = pd.read_csv(io.StringIO(response.text))
+            # Use utf-8-sig encoding to handle any BOM characters
+            df = pd.read_csv(io.StringIO(response.text.encode('utf-8').decode('utf-8-sig')))
         
         # Convert company names and codes to lowercase for better matching
         df['Company_Name_Lower'] = df['Company_Name'].str.lower()
-        # Convert company codes to strings
-        df['Company_Code'] = df['Company_Code'].astype(str)
+        # Convert company codes to strings and ensure they're padded to 4 digits
+        df['Company_Code'] = df['Company_Code'].astype(str).str.zfill(4)
+        
+        # Log the loaded companies for debugging
+        st.write("Loaded companies:", df['Company_Name'].tolist())
         return df
     except Exception as e:
         st.error(f"Error loading company data: {e}")
@@ -194,7 +198,7 @@ def main():
     st.sidebar.markdown("""
     ### How to use company data:
     1. **Option 1:** Upload CSV file using the uploader above
-    2. **Option 2:** Add file to GitHub and update `https://raw.githubusercontent.com/CodacXz/Test/refs/heads/main/saudi_companies.csv`
+    2. **Option 2:** Add file to GitHub and update `GITHUB_CSV_URL`
     
     CSV file format:
     ```
