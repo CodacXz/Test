@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 
 # Constants
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-GITHUB_CSV_URL = "https://raw.githubusercontent.com/saudistocks/stock_data/main/saudi_companies.csv"
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/saudistocks/stock_data/main/companies/saudi_companies.csv"
 COMPANIES_FILE = "saudi_companies.csv"  # Local companies data file
 
 def main():
@@ -171,7 +171,7 @@ def load_company_data(uploaded_file=None):
         
         # Try loading from local file
         try:
-            df = pd.read_csv(COMPANIES_FILE, encoding='utf-8')
+            df = pd.read_csv(COMPANIES_FILE)
             st.success(f"✅ Successfully loaded {len(df)} companies from local file")
             return df
         except FileNotFoundError:
@@ -181,35 +181,28 @@ def load_company_data(uploaded_file=None):
         
         # Try loading from GitHub
         try:
-            df = pd.read_csv(GITHUB_CSV_URL)
-            # Save to local file for future use
-            df.to_csv(COMPANIES_FILE, index=False, encoding='utf-8')
-            st.success(f"✅ Successfully loaded {len(df)} companies from GitHub")
-            return df
+            st.info(f"Downloading from GitHub: {GITHUB_CSV_URL}")
+            response = requests.get(GITHUB_CSV_URL)
+            st.info(f"GitHub response status: {response.status_code}")
+            
+            if response.status_code == 200:
+                # Save content to file
+                with open(COMPANIES_FILE, 'wb') as f:
+                    f.write(response.content)
+                # Read the saved file
+                df = pd.read_csv(COMPANIES_FILE)
+                st.success(f"✅ Successfully loaded {len(df)} companies from GitHub")
+                return df
+            else:
+                st.error(f"❌ Failed to download from GitHub (Status: {response.status_code})")
+                st.code(response.text[:500])  # Show first 500 chars of response
         except Exception as e:
-            st.error("❌ Failed to load companies data")
-            st.error(f"Error details: {str(e)}")
-            st.info("Please upload a companies CSV file using the uploader in the sidebar")
-            return pd.DataFrame()
-
-        # Ensure required columns exist
-        required_columns = ['Company_Code', 'Company_Name']
-        if not all(col in df.columns for col in required_columns):
-            st.error("❌ Invalid CSV format. Required columns: Company_Code, Company_Name")
-            return pd.DataFrame()
-
-        # Clean and format data
-        df['Company_Code'] = df['Company_Code'].astype(str).str.zfill(4)
-        df['Company_Name'] = df['Company_Name'].str.strip()
+            st.error(f"❌ GitHub download failed: {str(e)}")
         
-        return df
-        
-    except pd.errors.EmptyDataError:
-        st.error("❌ The file is empty")
+        st.error("❌ Failed to load companies data")
+        st.info("Please upload a companies CSV file using the uploader in the sidebar")
         return pd.DataFrame()
-    except pd.errors.ParserError:
-        st.error("❌ Could not parse the CSV file. Please check the format")
-        return pd.DataFrame()
+
     except Exception as e:
         st.error(f"❌ Error loading company data: {str(e)}")
         return pd.DataFrame()
@@ -217,62 +210,76 @@ def load_company_data(uploaded_file=None):
 def fetch_news(api_token, published_after, limit=3):
     """Fetch news articles from MarketAux API"""
     if not api_token:
-        st.error("❌ API Token is missing. Please add your MarketAux API token to .streamlit/secrets.toml")
-        st.info("Add this line to your secrets.toml:\nMARKETAUX_TOKEN = 'your_api_token_here'")
+        st.error("❌ API Token is missing")
         return []
-        
+    
+    # Convert date to ISO format
+    try:
+        if isinstance(published_after, str):
+            # Try parsing different date formats
+            try:
+                date_obj = datetime.strptime(published_after, "%Y-%m-%d")
+            except ValueError:
+                try:
+                    date_obj = datetime.strptime(published_after, "%Y/%m/%d")
+                except ValueError:
+                    st.error("❌ Invalid date format. Please use YYYY-MM-DD")
+                    return []
+        else:
+            date_obj = published_after
+            
+        formatted_date = date_obj.strftime("%Y-%m-%d")
+    except Exception as e:
+        st.error(f"❌ Date error: {str(e)}")
+        return []
+
     params = {
         "api_token": api_token,
         "countries": "sa",
         "language": "en",
         "limit": limit,
-        "published_after": published_after  # Should be in YYYY-MM-DD format
+        "published_after": formatted_date
     }
     
     try:
-        st.info(f"Fetching news published after {published_after}...")  # Debug info
-        response = requests.get(NEWS_API_URL, params=params)
+        # Show request details for debugging
+        st.code(f"""
+Making API request:
+URL: {NEWS_API_URL}
+Parameters:
+- published_after: {formatted_date}
+- countries: sa
+- language: en
+- limit: {limit}
+        """)
         
-        # Debug info
-        st.code(f"Request URL: {response.url}")
+        response = requests.get(NEWS_API_URL, params=params)
+        st.info(f"API response status: {response.status_code}")
         
         data = response.json()
+        st.json(data)  # Show full API response for debugging
         
-        if 'error' in data:
-            error_msg = data['error'].get('message', 'Unknown error')
-            st.error(f"API Error: {error_msg}")
-            
-            # Show the actual parameters being sent for debugging
-            st.info("Debug info:")
-            st.json({
-                "URL": NEWS_API_URL,
-                "Parameters": params
-            })
+        if response.status_code != 200:
+            st.error(f"❌ API Error (Status: {response.status_code})")
+            if 'error' in data:
+                error_msg = data['error'].get('message', 'Unknown error')
+                st.error(f"API Error: {error_msg}")
             return []
             
         articles = data.get("data", [])
-        if not articles:
-            st.warning("No articles found. This could be because:")
-            st.markdown("""
-            1. No news articles for the selected date range
-            2. API rate limit reached
-            3. API token may be invalid
+        if articles:
+            st.success(f"✅ Found {len(articles)} articles")
+        else:
+            st.warning("No articles found for the selected date range")
+            st.info("Try selecting an earlier date")
             
-            Try:
-            - Selecting an earlier date
-            - Checking your API token
-            - Waiting a few minutes if you've made many requests
-            """)
         return articles
         
     except requests.exceptions.RequestException as e:
-        st.error(f"Network Error: Could not connect to the news API. {str(e)}")
-        return []
-    except ValueError as e:
-        st.error(f"Data Error: Could not parse API response. {str(e)}")
+        st.error(f"❌ Network Error: {str(e)}")
         return []
     except Exception as e:
-        st.error(f"Unexpected Error: {str(e)}")
+        st.error(f"❌ Error: {str(e)}")
         return []
 
 def analyze_sentiment(text):
