@@ -119,39 +119,24 @@ def find_company_code(text, companies_df):
     return None, None
 
 def analyze_sentiment(text):
-    """Analyze sentiment of text using VADER and financial keywords"""
-    # Initialize VADER
+    """Analyze sentiment of text using VADER"""
     analyzer = SentimentIntensityAnalyzer()
+    scores = analyzer.polarity_scores(text)
     
-    # Add financial-specific words to VADER lexicon
-    analyzer.lexicon.update({
-        'fine': -3.0,          # Very negative
-        'penalty': -3.0,       # Very negative
-        'violation': -3.0,     # Very negative
-        'regulatory': -2.0,    # Negative
-        'investigation': -2.0, # Negative
-        'lawsuit': -2.0,       # Negative
-        'corrective': -1.0,    # Slightly negative
-        'inaccurate': -1.0,    # Slightly negative
-        'misleading': -2.0     # Negative
-    })
+    compound = scores['compound']
     
-    try:
-        # Get sentiment scores
-        scores = analyzer.polarity_scores(text)
-        compound_score = scores['compound']  # This is the normalized combined score
-        
-        # Convert to sentiment and confidence
-        if compound_score >= 0.05:
-            return "POSITIVE", min((compound_score + 1) / 2, 1.0)
-        elif compound_score <= -0.05:
-            return "NEGATIVE", min(abs(compound_score), 1.0)
-        else:
-            return "NEUTRAL", 0.5
-        
-    except Exception as e:
-        st.warning(f"Sentiment analysis failed: {e}")
-        return "NEUTRAL", 0.5
+    # Convert compound score to sentiment
+    if compound >= 0.05:
+        sentiment = "POSITIVE"
+        confidence = (compound + 1) / 2 * 100  # Convert to percentage
+    elif compound <= -0.05:
+        sentiment = "NEGATIVE"
+        confidence = (-compound + 1) / 2 * 100
+    else:
+        sentiment = "NEUTRAL"
+        confidence = 50
+    
+    return sentiment, confidence
 
 def fetch_news(published_after, limit=3):
     """Fetch news articles from MarketAux API"""
@@ -208,31 +193,49 @@ def get_stock_data(symbol, period='1mo'):
 
 def analyze_technical_indicators(df):
     """Analyze technical indicators and generate trading signals"""
-    latest = df.iloc[-1]
     signals = []
     
     # MACD Analysis
-    if latest['MACD'] > latest['MACD_Signal']:
+    last_macd = df['MACD'].iloc[-1]
+    last_signal = df['MACD_Signal'].iloc[-1]
+    macd_diff = last_macd - last_signal
+    
+    if macd_diff > 0.1:  # Add threshold to avoid noise
         signals.append(("MACD", "BULLISH", "MACD line above signal line"))
-    else:
+    elif macd_diff < -0.1:
         signals.append(("MACD", "BEARISH", "MACD line below signal line"))
-    
+    else:
+        signals.append(("MACD", "NEUTRAL", "MACD and signal lines are close"))
+
     # RSI Analysis
-    if latest['RSI'] > 70:
-        signals.append(("RSI", "BEARISH", "Overbought condition (RSI > 70)"))
-    elif latest['RSI'] < 30:
-        signals.append(("RSI", "BULLISH", "Oversold condition (RSI < 30)"))
+    last_rsi = df['RSI'].iloc[-1]
+    if last_rsi > 75:  # Increased threshold for stronger signal
+        signals.append(("RSI", "BEARISH", f"Strongly overbought (RSI: {last_rsi:.2f})"))
+    elif last_rsi > 70:
+        signals.append(("RSI", "NEUTRAL", f"Potentially overbought (RSI: {last_rsi:.2f})"))
+    elif last_rsi < 25:  # Increased threshold for stronger signal
+        signals.append(("RSI", "BULLISH", f"Strongly oversold (RSI: {last_rsi:.2f})"))
+    elif last_rsi < 30:
+        signals.append(("RSI", "NEUTRAL", f"Potentially oversold (RSI: {last_rsi:.2f})"))
     else:
-        signals.append(("RSI", "NEUTRAL", f"Normal range (RSI: {latest['RSI']:.2f})"))
-    
+        signals.append(("RSI", "NEUTRAL", f"Normal range (RSI: {last_rsi:.2f})"))
+
     # Bollinger Bands Analysis
-    close = latest['Close']
-    if close > latest['BB_upper']:
-        signals.append(("Bollinger Bands", "BEARISH", "Price above upper band"))
-    elif close < latest['BB_lower']:
-        signals.append(("Bollinger Bands", "BULLISH", "Price below lower band"))
+    last_close = df['Close'].iloc[-1]
+    last_upper = df['BB_upper'].iloc[-1]
+    last_lower = df['BB_lower'].iloc[-1]
+    bb_width = (last_upper - last_lower) / df['Close'].mean()
+    
+    # Calculate percentage distance from bands
+    upper_dist = (last_upper - last_close) / last_close * 100
+    lower_dist = (last_close - last_lower) / last_close * 100
+    
+    if upper_dist < -1:  # Price is more than 1% above upper band
+        signals.append(("Bollinger Bands", "BEARISH", "Price significantly above upper band"))
+    elif lower_dist < -1:  # Price is more than 1% below lower band
+        signals.append(("Bollinger Bands", "BULLISH", "Price significantly below lower band"))
     else:
-        signals.append(("Bollinger Bands", "NEUTRAL", "Price within bands"))
+        signals.append(("Bollinger Bands", "NEUTRAL", "Price within normal range of bands"))
     
     return signals
 
@@ -274,23 +277,23 @@ def display_article(article, companies_df):
     published_at = article.get("published_at", "")
     
     st.markdown(f"## {title}")
-    
-    # Display source and date
     st.write(f"Source: {source} | Published: {published_at[:16]}")
-    
-    # Display description
     st.write(description[:200] + "..." if len(description) > 200 else description)
     
     # Sentiment Analysis
     sentiment, confidence = analyze_sentiment(title + " " + description)
     
-    # Create columns for analysis
     col1, col2 = st.columns(2)
-    
     with col1:
         st.markdown("### Sentiment Analysis")
-        st.write(f"**Sentiment:** {sentiment}")
-        st.write(f"**Confidence:** {confidence:.2f}%")
+        sentiment_color = {
+            "POSITIVE": "green",
+            "NEGATIVE": "red",
+            "NEUTRAL": "gray"
+        }.get(sentiment, "black")
+        
+        st.markdown(f"**Sentiment:** :{sentiment_color}[{sentiment}]")
+        st.markdown(f"**Confidence:** {confidence:.1f}%")
     
     # Find mentioned companies
     mentioned_companies = find_companies_in_text(title + " " + description, companies_df)
@@ -301,19 +304,17 @@ def display_article(article, companies_df):
             st.markdown(f"- {company['name']} ({company['symbol']})")
         
         st.markdown("### Stock Analysis")
-        # Create tabs for each company
         tabs = st.tabs([company['name'] for company in mentioned_companies])
         
         for tab, company in zip(tabs, mentioned_companies):
             with tab:
-                # Get stock data and technical analysis
                 df, error = get_stock_data(company['code'])
                 if error:
                     st.error(f"Error fetching stock data: {error}")
                     continue
                 
                 if df is not None:
-                    # Show current stock price
+                    # Price Analysis
                     latest_price = df['Close'][-1]
                     prev_price = df['Close'][-2]
                     price_change = ((latest_price - prev_price)/prev_price*100)
@@ -328,24 +329,42 @@ def display_article(article, companies_df):
                     with col3:
                         st.metric("Day Low", f"{df['Low'][-1]:.2f} SAR")
                     
+                    # Technical Analysis
+                    signals = analyze_technical_indicators(df)
+                    
+                    # Count bullish vs bearish signals
+                    signal_counts = {
+                        "BULLISH": len([s for s in signals if s[1] == "BULLISH"]),
+                        "BEARISH": len([s for s in signals if s[1] == "BEARISH"]),
+                        "NEUTRAL": len([s for s in signals if s[1] == "NEUTRAL"])
+                    }
+                    
+                    # Technical Overview
+                    st.markdown("### Technical Overview")
+                    tech_cols = st.columns(3)
+                    with tech_cols[0]:
+                        st.metric("Bullish Signals", signal_counts["BULLISH"])
+                    with tech_cols[1]:
+                        st.metric("Bearish Signals", signal_counts["BEARISH"])
+                    with tech_cols[2]:
+                        st.metric("Neutral Signals", signal_counts["NEUTRAL"])
+                    
                     # Plot stock chart
                     fig = plot_stock_analysis(df, company['name'], company['symbol'])
                     st.plotly_chart(fig)
                     
                     # Technical Analysis Signals
                     st.markdown("### Technical Analysis Signals")
-                    signals = analyze_technical_indicators(df)
-                    
-                    # Create a clean table for signals
                     signal_df = pd.DataFrame(signals, columns=['Indicator', 'Signal', 'Reason'])
                     st.table(signal_df)
                     
                     # Combined Analysis
                     st.markdown("### Combined Analysis")
-                    tech_sentiment = sum(1 if signal[1] == "BULLISH" else -1 if signal[1] == "BEARISH" else 0 for signal in signals)
-                    news_sentiment_score = 1 if sentiment == "POSITIVE" else -1 if sentiment == "NEGATIVE" else 0
+                    tech_score = (signal_counts["BULLISH"] - signal_counts["BEARISH"]) / len(signals)
+                    news_score = 1 if sentiment == "POSITIVE" else -1 if sentiment == "NEGATIVE" else 0
                     
-                    combined_score = (tech_sentiment + news_sentiment_score) / (len(signals) + 1)
+                    # Weight technical analysis more heavily (70/30 split)
+                    combined_score = (0.7 * tech_score) + (0.3 * news_score)
                     
                     if combined_score > 0.3:
                         st.success("🟢 Overall Bullish: Technical indicators and news sentiment suggest positive momentum")
@@ -363,7 +382,6 @@ def display_article(article, companies_df):
                     st.metric("Trading Volume", f"{int(latest_volume):,}", 
                              f"{volume_change:.1f}% vs 30-day average")
     
-    # Article link
     st.markdown(f"[Read full article]({url})")
     st.markdown("---")
 
