@@ -96,7 +96,7 @@ def main():
     # Fetch news when button is clicked
     if fetch_clicked:
         with st.spinner("Fetching latest news..."):
-            articles = fetch_news(api_token, published_after.strftime("%Y/%m/%d"), num_articles)
+            articles = fetch_news(api_token, published_after.strftime("%Y-%m-%d"), num_articles)
             st.session_state.articles = articles
     
     # Display articles
@@ -158,18 +158,16 @@ def load_company_data(uploaded_file=None):
             df = pd.read_csv(uploaded_file)
             st.success(f"✅ Successfully loaded {len(df)} companies from uploaded file")
         else:
+            # Try loading from local file first
             try:
-                df = pd.read_csv(GITHUB_CSV_URL)
-                st.success(f"✅ Successfully loaded {len(df)} companies from GitHub")
+                df = pd.read_csv("companies.csv")
+                st.success(f"✅ Successfully loaded {len(df)} companies from local file")
             except Exception as e:
-                st.warning("Could not load companies from GitHub. Using backup data.")
-                # Load from backup URL
-                backup_url = "https://raw.githubusercontent.com/saudistocks/stock_data/main/data/companies.csv"
                 try:
-                    df = pd.read_csv(backup_url)
-                    st.success(f"✅ Successfully loaded {len(df)} companies from backup source")
+                    df = pd.read_csv(GITHUB_CSV_URL)
+                    st.success(f"✅ Successfully loaded {len(df)} companies from GitHub")
                 except Exception as e:
-                    st.error("❌ Failed to load companies data from all sources")
+                    st.error("❌ Failed to load companies data")
                     return pd.DataFrame()
 
         # Ensure required columns exist
@@ -200,13 +198,24 @@ def fetch_news(api_token, published_after, limit=3):
         st.error("❌ API Token is missing. Please add your MarketAux API token to .streamlit/secrets.toml")
         st.info("Add this line to your secrets.toml:\nMARKETAUX_TOKEN = 'your_api_token_here'")
         return []
+    
+    # Format date as YYYY-MM-DD for API
+    try:
+        if isinstance(published_after, str):
+            date_obj = datetime.strptime(published_after, "%Y-%m-%d")
+        else:
+            date_obj = published_after
+        formatted_date = date_obj.strftime("%Y-%m-%d")
+    except Exception as e:
+        st.error(f"Invalid date format: {published_after}")
+        return []
         
     params = {
         "api_token": api_token,
         "countries": "sa",
         "language": "en",
         "limit": limit,
-        "published_after": published_after
+        "published_after": formatted_date
     }
     
     try:
@@ -214,7 +223,10 @@ def fetch_news(api_token, published_after, limit=3):
         data = response.json()
         
         if 'error' in data:
-            st.error(f"API Error: {data['error'].get('message', 'Unknown error')}")
+            error_msg = data['error'].get('message', 'Unknown error')
+            st.error(f"API Error: {error_msg}")
+            if 'published_after' in error_msg.lower():
+                st.info("Try using a different date format or range")
             return []
             
         articles = data.get("data", [])
