@@ -7,7 +7,15 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # API Configuration
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-API_TOKEN = st.secrets.get("MARKETAUX_API_KEY", "")  # Use get() with default empty string
+
+# Load API token
+try:
+    API_TOKEN = st.secrets["MARKETAUX_API_KEY"]
+    if not API_TOKEN:
+        st.error("API Token is empty. Please check your .streamlit/secrets.toml file")
+except Exception as e:
+    st.error("Error loading API token. Please check your .streamlit/secrets.toml file")
+    API_TOKEN = ""
 
 # GitHub raw file URL for the companies CSV file
 GITHUB_CSV_URL = "https://raw.githubusercontent.com/CodacXz/Test/main/saudi_companies.csv?raw=true"
