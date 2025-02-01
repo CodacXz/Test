@@ -60,46 +60,17 @@ def find_companies_in_text(text, companies_df):
     text = text.lower()
     mentioned_companies = []
     
-    # Common name variations
-    name_variations = {
-        'al rajhi': '1120',
-        'alrajhi': '1120',
-        'rajhi': '1120',
-        'saudi fransi': '1050',
-        'banque saudi fransi': '1050',
-        'bsf': '1050',
-        'aljazira': '1020',
-        'al jazira': '1020',
-        'anb': '1080',
-        'arab national': '1080',
-        'arab national bank': '1080'
-    }
-    
-    # First check for name variations
-    for variation, code in name_variations.items():
-        if variation in text:
-            company = companies_df[companies_df['Company_Code'] == code].iloc[0]
-            mentioned_companies.append({
-                'code': str(company['Company_Code']).zfill(4),
-                'name': company['Company_Name'],
-                'symbol': f"{str(company['Company_Code']).zfill(4)}.SR"
-            })
-    
-    # Then check for exact matches from the dataframe
+    # Search for each company in the text
     for _, row in companies_df.iterrows():
         company_name = str(row['Company_Name']).lower()
-        company_code = str(row['Company_Code']).zfill(4)
+        company_code = str(row['Company_Code']).zfill(4)  # Ensure 4-digit format
         
-        # Skip if already added through variations
-        if company_code in [c['code'] for c in mentioned_companies]:
-            continue
-        
-        # Check for exact company name or code
+        # Check if company name or code is in text
         if company_name in text or company_code in text:
             mentioned_companies.append({
-                'code': company_code,
+                'code': company_code,  # This will be 4 digits
                 'name': row['Company_Name'],
-                'symbol': f"{company_code}.SR"
+                'symbol': f"{company_code}.SR"  # Add Saudi market suffix
             })
     
     return mentioned_companies
@@ -296,72 +267,55 @@ def display_article(article, companies_df):
     mentioned_companies = find_companies_in_text(title + " " + description, companies_df)
     
     if mentioned_companies:
-        st.markdown("### Companies Mentioned")
         for company in mentioned_companies:
-            st.markdown(f"- {company['name']} ({company['symbol']})")
-        
-        st.markdown("### Stock Analysis")
-        # Create tabs for each company
-        tabs = st.tabs([company['name'] for company in mentioned_companies])
-        
-        for tab, company in zip(tabs, mentioned_companies):
-            with tab:
-                # Get stock data and technical analysis
-                df, error = get_stock_data(company['code'])
-                if error:
-                    st.error(f"Error fetching stock data: {error}")
-                    continue
+            st.markdown(f"### Company Analysis: {company['name']} ({company['symbol']})")
+            
+            # Get stock data and technical analysis
+            df, error = get_stock_data(company['code'])
+            if error:
+                st.error(f"Error fetching stock data: {error}")
+                continue
+            
+            if df is not None:
+                # Show current stock price
+                latest_price = df['Close'][-1]
+                st.metric("Current Price", f"{latest_price:.2f} SAR", 
+                         f"{((latest_price - df['Close'][-2])/df['Close'][-2]*100):.2f}%")
                 
-                if df is not None:
-                    # Show current stock price
-                    latest_price = df['Close'][-1]
-                    prev_price = df['Close'][-2]
-                    price_change = ((latest_price - prev_price)/prev_price*100)
-                    
-                    # Price metrics
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Current Price", f"{latest_price:.2f} SAR", 
-                                f"{price_change:.2f}%")
-                    with col2:
-                        st.metric("Day High", f"{df['High'][-1]:.2f} SAR")
-                    with col3:
-                        st.metric("Day Low", f"{df['Low'][-1]:.2f} SAR")
-                    
-                    # Plot stock chart
-                    fig = plot_stock_analysis(df, company['name'], company['symbol'])
-                    st.plotly_chart(fig)
-                    
-                    # Technical Analysis Signals
-                    st.markdown("### Technical Analysis Signals")
-                    signals = analyze_technical_indicators(df)
-                    
-                    # Create a clean table for signals
-                    signal_df = pd.DataFrame(signals, columns=['Indicator', 'Signal', 'Reason'])
-                    st.table(signal_df)
-                    
-                    # Combined Analysis
-                    st.markdown("### Combined Analysis")
-                    tech_sentiment = sum(1 if signal[1] == "BULLISH" else -1 if signal[1] == "BEARISH" else 0 for signal in signals)
-                    news_sentiment_score = 1 if sentiment == "POSITIVE" else -1 if sentiment == "NEGATIVE" else 0
-                    
-                    combined_score = (tech_sentiment + news_sentiment_score) / (len(signals) + 1)
-                    
-                    if combined_score > 0.3:
-                        st.success("🟢 Overall Bullish: Technical indicators and news sentiment suggest positive momentum")
-                    elif combined_score < -0.3:
-                        st.error("🔴 Overall Bearish: Technical indicators and news sentiment suggest negative pressure")
-                    else:
-                        st.warning("🟡 Neutral: Mixed signals from technical indicators and news sentiment")
-                    
-                    # Volume Analysis
-                    avg_volume = df['Volume'].mean()
-                    latest_volume = df['Volume'][-1]
-                    volume_change = ((latest_volume - avg_volume) / avg_volume) * 100
-                    
-                    st.markdown("### Volume Analysis")
-                    st.metric("Trading Volume", f"{int(latest_volume):,}", 
-                             f"{volume_change:.1f}% vs 30-day average")
+                # Plot stock chart
+                fig = plot_stock_analysis(df, company['name'], company['symbol'])
+                st.plotly_chart(fig)
+                
+                # Technical Analysis Signals
+                st.markdown("### Technical Analysis Signals")
+                signals = analyze_technical_indicators(df)
+                
+                # Create a clean table for signals
+                signal_df = pd.DataFrame(signals, columns=['Indicator', 'Signal', 'Reason'])
+                st.table(signal_df)
+                
+                # Combined Analysis
+                st.markdown("### Combined Analysis")
+                tech_sentiment = sum(1 if signal[1] == "BULLISH" else -1 if signal[1] == "BEARISH" else 0 for signal in signals)
+                news_sentiment_score = 1 if sentiment == "POSITIVE" else -1 if sentiment == "NEGATIVE" else 0
+                
+                combined_score = (tech_sentiment + news_sentiment_score) / (len(signals) + 1)
+                
+                if combined_score > 0.3:
+                    st.success("🟢 Overall Bullish: Technical indicators and news sentiment suggest positive momentum")
+                elif combined_score < -0.3:
+                    st.error("🔴 Overall Bearish: Technical indicators and news sentiment suggest negative pressure")
+                else:
+                    st.warning("🟡 Neutral: Mixed signals from technical indicators and news sentiment")
+                
+                # Volume Analysis
+                avg_volume = df['Volume'].mean()
+                latest_volume = df['Volume'][-1]
+                volume_change = ((latest_volume - avg_volume) / avg_volume) * 100
+                
+                st.markdown("### Volume Analysis")
+                st.metric("Trading Volume", f"{int(latest_volume):,}", 
+                         f"{volume_change:.1f}% vs 30-day average")
     
     # Article link
     st.markdown(f"[Read full article]({url})")
