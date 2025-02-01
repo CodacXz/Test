@@ -339,17 +339,17 @@ def main():
                 source = article.get('source', 'Unknown')
                 published_at = article.get('published_at', '')
                 
-                st.header(title)
-                st.write(f"Source: {source} | Published: {published_at[:16]}")
-                st.write(description)
+                st.header(title, key=f"header_{article_idx}")
+                st.write(f"Source: {source} | Published: {published_at[:16]}", key=f"source_{article_idx}")
+                st.write(description, key=f"description_{article_idx}")
                 
                 # Sentiment Analysis
                 text = f"{title} {description}"
                 sentiment, confidence = analyze_sentiment(text)
                 
-                st.write("### Sentiment Analysis")
-                st.write(f"**Sentiment:** {sentiment}")
-                st.write(f"**Confidence:** {confidence:.2f}%")
+                st.write("### Sentiment Analysis", key=f"sentiment_analysis_{article_idx}")
+                st.write(f"**Sentiment:** {sentiment}", key=f"sentiment_{article_idx}")
+                st.write(f"**Confidence:** {confidence:.2f}%", key=f"confidence_{article_idx}")
                 
                 # Company Analysis
                 entities = article.get('entities', [])
@@ -362,16 +362,16 @@ def main():
                             unique_companies.append(entity)
                     
                     if unique_companies:
-                        st.write("### Companies Mentioned")
-                        for company in unique_companies:
-                            st.write(f"**{company.get('name')} ({company.get('symbol')})**")
+                        st.write("### Companies Mentioned", key=f"companies_mentioned_{article_idx}")
+                        for company_idx, company in enumerate(unique_companies):
+                            st.write(f"**{company.get('name')} ({company.get('symbol')})**", key=f"company_{article_idx}_{company_idx}")
                             
                             try:
                                 symbol = company.get('symbol')
                                 df, error = get_stock_data(f"{symbol}.SR")
                                 
                                 if error:
-                                    st.error(error)
+                                    st.error(error, key=f"error_{article_idx}_{company_idx}")
                                     continue
                                     
                                 if df is not None and not df.empty:
@@ -383,17 +383,20 @@ def main():
                                         st.metric(
                                             "Current Price",
                                             f"{latest_price:.2f} SAR",
-                                            f"{price_change:.2f}%"
+                                            f"{price_change:.2f}%",
+                                            key=f"current_price_{article_idx}_{company_idx}"
                                         )
                                     with cols[1]:
                                         st.metric(
                                             "Day High",
-                                            f"{df['High'][-1]:.2f} SAR"
+                                            f"{df['High'][-1]:.2f} SAR",
+                                            key=f"day_high_{article_idx}_{company_idx}"
                                         )
                                     with cols[2]:
                                         st.metric(
                                             "Day Low",
-                                            f"{df['Low'][-1]:.2f} SAR"
+                                            f"{df['Low'][-1]:.2f} SAR",
+                                            key=f"day_low_{article_idx}_{company_idx}"
                                         )
                                     
                                     # Technical Analysis
@@ -448,9 +451,9 @@ def main():
                                             'Reason': 'Price within bands'
                                         })
                                     
-                                    st.write("### Technical Analysis")
+                                    st.write("### Technical Analysis", key=f"technical_analysis_{article_idx}_{company_idx}")
                                     signals_df = pd.DataFrame(signals)
-                                    st.dataframe(signals_df)
+                                    st.dataframe(signals_df, key=f"signals_df_{article_idx}_{company_idx}")
                                     
                                     # Stock chart
                                     fig = go.Figure()
@@ -472,13 +475,13 @@ def main():
                                         margin=dict(t=0)
                                     )
                                     
-                                    st.plotly_chart(fig, use_container_width=True)
+                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{article_idx}_{company_idx}")
                                     
                             except Exception as e:
-                                st.error(f"Error analyzing {company.get('name')}: {str(e)}")
+                                st.error(f"Error analyzing {company.get('name')}: {str(e)}", key=f"exception_{article_idx}_{company_idx}")
                 
-                st.markdown(f"[Read full article]({url})")
-                st.markdown("---")
+                st.markdown(f"[Read full article]({url})", key=f"read_full_article_{article_idx}")
+                st.markdown("---", key=f"divider_{article_idx}")
 
 if __name__ == "__main__":
     main()
