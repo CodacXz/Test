@@ -279,9 +279,9 @@ def main():
     st.title("Saudi Stock Market News", key="main_title")
     st.write("Real-time news analysis for Saudi stock market", key="main_desc")
     
-    # Initialize session state for skipped articles
-    if 'skipped_articles' not in st.session_state:
-        st.session_state.skipped_articles = set()
+    # Initialize session state for API calls
+    if 'api_calls_today' not in st.session_state:
+        st.session_state.api_calls_today = 0
     
     # Check and display API credits
     credits = check_api_credits()
@@ -290,56 +290,68 @@ def main():
         st.sidebar.write(f"Used: {credits.get('used', 'N/A')}")
         st.sidebar.write(f"Remaining: {credits.get('remaining', 'N/A')}")
         st.sidebar.write(f"Limit: {credits.get('limit', 'N/A')}")
+        st.sidebar.write(f"API Calls This Session: {st.session_state.api_calls_today}")
     
-    # Sidebar settings
-    st.sidebar.title("Settings", key="settings_title")
+    # Add reset button in sidebar
+    if st.sidebar.button("🔄 Reset Session"):
+        for key in list(st.session_state.keys()):
+            if key.startswith('skip_') or key == 'api_calls_today':
+                del st.session_state[key]
+        st.experimental_rerun()
+    
+    # Load company data
     uploaded_file = st.sidebar.file_uploader(
-        "Upload companies file (optional)", 
+        "Upload company data (optional)",
         type=['csv'],
         key="file_uploader"
     )
     
-    # Load company data
     companies_df = load_company_data(uploaded_file)
     if companies_df.empty:
-        st.warning("⚠️ No company data loaded", key="data_warning")
-    else:
-        st.sidebar.success(f"✅ Loaded {len(companies_df)} companies", key="data_success")
+        st.error("Failed to load company data")
+        return
     
-    # Date selection
-    default_date = datetime.now() - timedelta(days=7)
-    published_after = st.date_input(
-        "Show news published after:", 
-        value=default_date,
-        key="date_input"
+    # Date range selector
+    days_ago = st.sidebar.slider(
+        "Days of news to fetch",
+        min_value=1,
+        max_value=30,
+        value=1,
+        key="days_slider"
     )
-    published_after_iso = published_after.isoformat() + "T00:00:00"
+    
+    published_after = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
     
     # Number of articles
-    limit = st.sidebar.slider(
-        "Number of articles", 
-        1, 3, 3,
+    article_limit = st.sidebar.number_input(
+        "Number of articles to fetch",
+        min_value=1,
+        max_value=3,  # Limit to 3 articles to conserve API calls
+        value=1,
         key="article_limit"
     )
     
-    # Add reset button in sidebar
-    if st.sidebar.button("🔄 Reset Skipped Articles"):
-        for key in list(st.session_state.keys()):
-            if key.startswith('skip_'):
-                del st.session_state[key]
-        st.experimental_rerun()
-
     # Fetch news
     if st.button("Fetch News", key="fetch_button", use_container_width=True):
+        # Reset API call counter when fetching new articles
+        st.session_state.api_calls_today = 0
+        
         with st.spinner("Fetching latest news..."):
-            articles = fetch_news(published_after_iso, limit)
+            news_data = fetch_news(published_after, limit=article_limit)
             
-            if articles:
-                st.success(f"Found {len(articles)} articles", key="fetch_success")
-                for idx, article in enumerate(articles):
-                    display_article(article, companies_df, idx)
-            else:
-                st.warning("No articles found for the selected period", key="fetch_warning")
+            if not news_data:
+                st.error("No news articles found")
+                return
+            
+            # Display articles
+            for idx, article in enumerate(news_data):
+                # Check API call limit
+                if st.session_state.api_calls_today >= 3:
+                    st.warning("⚠️ Daily API call limit reached. Please try again tomorrow.")
+                    break
+                    
+                st.session_state.api_calls_today += 1
+                display_article(article, companies_df, idx)
 
 if __name__ == "__main__":
     main()
