@@ -1,44 +1,42 @@
 import requests
 import streamlit as st
 from datetime import datetime, timedelta
-from textblob import TextBlob
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # API Configuration
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
 API_TOKEN = st.secrets["STOCKDATA_API_TOKEN"]
 
 def analyze_sentiment(text):
-    """Analyze sentiment of text using TextBlob and financial keywords"""
-    # Financial negative keywords
-    negative_keywords = ['fine', 'penalty', 'violation', 'failed', 'failure', 'loss', 'decline', 
-                        'debt', 'investigation', 'lawsuit', 'regulatory action', 'corrective', 
-                        'inaccurate', 'misleading']
+    """Analyze sentiment of text using VADER and financial keywords"""
+    # Initialize VADER
+    analyzer = SentimentIntensityAnalyzer()
     
-    # Financial positive keywords
-    positive_keywords = ['profit', 'growth', 'increase', 'success', 'expansion', 'dividend', 
-                        'earnings', 'upgrade', 'innovation', 'partnership']
-    
-    # Count keyword occurrences
-    text_lower = text.lower()
-    negative_count = sum(1 for word in negative_keywords if word in text_lower)
-    positive_count = sum(1 for word in positive_keywords if word in text_lower)
+    # Add financial-specific words to VADER lexicon
+    analyzer.lexicon.update({
+        'fine': -3.0,          # Very negative
+        'penalty': -3.0,       # Very negative
+        'violation': -3.0,     # Very negative
+        'regulatory': -2.0,    # Negative
+        'investigation': -2.0, # Negative
+        'lawsuit': -2.0,       # Negative
+        'corrective': -1.0,    # Slightly negative
+        'inaccurate': -1.0,    # Slightly negative
+        'misleading': -2.0     # Negative
+    })
     
     try:
-        # Get TextBlob sentiment
-        analysis = TextBlob(text)
-        base_polarity = analysis.sentiment.polarity
+        # Get sentiment scores
+        scores = analyzer.polarity_scores(text)
+        compound_score = scores['compound']  # This is the normalized combined score
         
-        # Adjust polarity based on financial keywords
-        keyword_adjustment = (positive_count - negative_count) * 0.2
-        final_polarity = base_polarity + keyword_adjustment
-        
-        # Convert adjusted polarity to label and score
-        if final_polarity > 0:
-            confidence = (final_polarity + 1) / 2
-            return "POSITIVE", min(confidence, 1.0)
-        elif final_polarity < 0:
-            return "NEGATIVE", min(abs(final_polarity), 1.0)
-        return "NEUTRAL", 0.5
+        # Convert to sentiment and confidence
+        if compound_score >= 0.05:
+            return "POSITIVE", min((compound_score + 1) / 2, 1.0)
+        elif compound_score <= -0.05:
+            return "NEGATIVE", min(abs(compound_score), 1.0)
+        else:
+            return "NEUTRAL", 0.5
         
     except Exception as e:
         st.warning(f"Sentiment analysis failed: {e}")
