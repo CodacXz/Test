@@ -133,19 +133,18 @@ def get_stock_data(symbol, period='1mo'):
     except Exception as e:
         return None, f"Error fetching data for {symbol}: {str(e)}"
 
-def display_article(article, companies_df, article_idx):
-    """Display a single article with analysis"""
-    # Display article content
+def display_article_preview(article, article_idx):
+    """Display just the article without analysis"""
+    title = article.get('title', 'No title')
+    description = article.get('description', 'No description')
+    url = article.get('url', '#')
+    source = article.get('source', 'Unknown')
+    published_at = article.get('published_at', '')
+    
+    # Create unique key prefix from title
+    unique_key = f"{hash(title)}_{article_idx}"
+    
     with st.container():
-        title = article.get('title', 'No title')
-        description = article.get('description', 'No description')
-        url = article.get('url', '#')
-        source = article.get('source', 'Unknown')
-        published_at = article.get('published_at', '')
-        
-        # Create unique key prefix from title
-        unique_key = f"{hash(title)}_{article_idx}"
-        
         # Title row with skip button
         title_col, skip_col = st.columns([5, 1])
         with title_col:
@@ -159,107 +158,105 @@ def display_article(article, companies_df, article_idx):
         # Check if this article should be skipped
         if st.session_state.get(f'skip_{unique_key}', False):
             return False
-        
+            
         st.write(f"Source: {source} | Published: {published_at[:16]}", key=f"meta_{unique_key}")
         st.write(description, key=f"desc_{unique_key}")
-        
-        # Sentiment Analysis
-        sentiment, confidence = analyze_sentiment(title + " " + description)
-        
-        col1, col2 = st.columns(2, key=f"cols_{unique_key}")
-        with col1:
-            st.markdown("### Sentiment Analysis", key=f"sent_title_{unique_key}")
-            st.write(f"**Sentiment:** {sentiment}", key=f"sent_value_{unique_key}")
-            st.write(f"**Confidence:** {confidence:.2f}%", key=f"conf_value_{unique_key}")
-        
-        # Find mentioned companies first
-        text = f"{title} {description}"
-        mentioned_company = None
-        
-        # Find first company mentioned
-        for _, row in companies_df.iterrows():
-            company_name = str(row['Company_Name']).lower()
-            company_code = str(row['Company_Code'])
-            if company_name in text.lower() or company_code in text.lower():
-                mentioned_company = {
-                    'name': row['Company_Name'],
-                    'code': company_code,
-                    'symbol': f"{company_code}.SR"
-                }
-                break
-        
-        if mentioned_company:
-            # Create unique key for this company in this article
-            company_key = f"{unique_key}_{mentioned_company['code']}"
-            
-            st.write("### Company Analysis", key=f"comp_title_{company_key}")
-            st.write(f"**{mentioned_company['name']} ({mentioned_company['symbol']})**", 
-                    key=f"comp_name_{company_key}")
-            
-            try:
-                df, error = get_stock_data(mentioned_company['symbol'])
-                if error:
-                    st.error(error, key=f"error_{company_key}")
-                else:
-                    if df is not None and not df.empty:
-                        # Show metrics
-                        latest_price = df['Close'][-1]
-                        price_change = ((latest_price - df['Close'][-2])/df['Close'][-2]*100)
-                        
-                        metrics_cols = st.columns(3, key=f"metric_cols_{company_key}")
-                        with metrics_cols[0]:
-                            st.metric(
-                                "Current Price", 
-                                f"{latest_price:.2f} SAR",
-                                f"{price_change:.2f}%",
-                                key=f"price_{company_key}"
-                            )
-                        with metrics_cols[1]:
-                            st.metric(
-                                "Day High", 
-                                f"{df['High'][-1]:.2f} SAR",
-                                key=f"high_{company_key}"
-                            )
-                        with metrics_cols[2]:
-                            st.metric(
-                                "Day Low", 
-                                f"{df['Low'][-1]:.2f} SAR",
-                                key=f"low_{company_key}"
-                            )
-                        
-                        # Create chart
-                        fig = go.Figure()
-                        fig.add_trace(go.Candlestick(
-                            x=df.index,
-                            open=df['Open'],
-                            high=df['High'],
-                            low=df['Low'],
-                            close=df['Close'],
-                            name='Price'
-                        ))
-                        
-                        fig.update_layout(
-                            title=None,
-                            yaxis_title='Price (SAR)',
-                            xaxis_title='Date',
-                            template='plotly_dark',
-                            height=400,
-                            margin=dict(t=0)
-                        )
-                        
-                        # Use a truly unique key for the chart
-                        chart_key = f"chart_{company_key}_{hash(str(df.index[0]))}"
-                        st.plotly_chart(
-                            fig, 
-                            key=chart_key,
-                            use_container_width=True
-                        )
-            except Exception as e:
-                st.error(f"Error analyzing {mentioned_company['name']}: {str(e)}", 
-                        key=f"analysis_error_{company_key}")
-        
         st.markdown(f"[Read full article]({url})", key=f"url_{unique_key}")
         st.markdown("---", key=f"divider_{unique_key}")
+        
+        return True
+
+def analyze_articles(articles, companies_df):
+    """Analyze all articles at once"""
+    st.header("📊 Articles Analysis")
+    
+    for idx, article in enumerate(articles):
+        if not st.session_state.get(f'skip_{hash(article.get("title", ""))}_preview_{idx}', False):
+            title = article.get('title', 'No title')
+            description = article.get('description', 'No description')
+            text = f"{title} {description}"
+            
+            st.subheader(f"Analysis for: {title}")
+            
+            # Sentiment Analysis
+            sentiment, confidence = analyze_sentiment(text)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### Sentiment Analysis")
+                st.write(f"**Sentiment:** {sentiment}")
+                st.write(f"**Confidence:** {confidence:.2f}%")
+            
+            # Find mentioned companies
+            mentioned_company = None
+            for _, row in companies_df.iterrows():
+                company_name = str(row['Company_Name']).lower()
+                company_code = str(row['Company_Code'])
+                if company_name in text.lower() or company_code in text.lower():
+                    mentioned_company = {
+                        'name': row['Company_Name'],
+                        'code': company_code,
+                        'symbol': f"{company_code}.SR"
+                    }
+                    break
+            
+            if mentioned_company:
+                st.write("### Company Analysis")
+                st.write(f"**{mentioned_company['name']} ({mentioned_company['symbol']})**")
+                
+                try:
+                    df, error = get_stock_data(mentioned_company['symbol'])
+                    if error:
+                        st.error(error)
+                    else:
+                        if df is not None and not df.empty:
+                            # Show metrics
+                            latest_price = df['Close'][-1]
+                            price_change = ((latest_price - df['Close'][-2])/df['Close'][-2]*100)
+                            
+                            metrics_cols = st.columns(3)
+                            with metrics_cols[0]:
+                                st.metric(
+                                    "Current Price", 
+                                    f"{latest_price:.2f} SAR",
+                                    f"{price_change:.2f}%"
+                                )
+                            with metrics_cols[1]:
+                                st.metric(
+                                    "Day High", 
+                                    f"{df['High'][-1]:.2f} SAR"
+                                )
+                            with metrics_cols[2]:
+                                st.metric(
+                                    "Day Low", 
+                                    f"{df['Low'][-1]:.2f} SAR"
+                                )
+                            
+                            # Create chart
+                            fig = go.Figure()
+                            fig.add_trace(go.Candlestick(
+                                x=df.index,
+                                open=df['Open'],
+                                high=df['High'],
+                                low=df['Low'],
+                                close=df['Close'],
+                                name='Price'
+                            ))
+                            
+                            fig.update_layout(
+                                title=None,
+                                yaxis_title='Price (SAR)',
+                                xaxis_title='Date',
+                                template='plotly_dark',
+                                height=400,
+                                margin=dict(t=0)
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                except Exception as e:
+                    st.error(f"Error analyzing {mentioned_company['name']}: {str(e)}")
+            
+            st.markdown("---")
 
 def check_api_credits():
     """Check remaining API credits"""
@@ -343,15 +340,18 @@ def main():
                 st.error("No news articles found")
                 return
             
-            # Display articles
+            # First, display all article previews
+            st.header("📰 Latest News")
+            displayed_articles = []
             for idx, article in enumerate(news_data):
-                # Check API call limit
-                if st.session_state.api_calls_today >= 3:
-                    st.warning("⚠️ Daily API call limit reached. Please try again tomorrow.")
-                    break
-                    
-                st.session_state.api_calls_today += 1
-                display_article(article, companies_df, idx)
+                if display_article_preview(article, idx):
+                    displayed_articles.append(article)
+            
+            # Then show analysis section if there are displayed articles
+            if displayed_articles:
+                analyze_articles(displayed_articles, companies_df)
+            else:
+                st.warning("No articles to analyze - all have been skipped")
 
 if __name__ == "__main__":
     main()
