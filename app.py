@@ -10,7 +10,8 @@ from plotly.subplots import make_subplots
 
 # Constants
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-GITHUB_CSV_URL = "https://raw.githubusercontent.com/saudistocks/stock_data/main/data/companies.csv"
+GITHUB_CSV_URL = "https://raw.githubusercontent.com/saudistocks/stock_data/main/data/saudi_companies.csv"
+COMPANIES_FILE = "saudi_companies.csv"  # Local companies data file
 
 def main():
     # Must be the first Streamlit command
@@ -75,15 +76,18 @@ def main():
     
     # Load companies data
     companies_df = load_company_data(uploaded_file)
-    if not companies_df.empty:
-        st.success(f"✅ Successfully loaded {len(companies_df)} companies")
     
     # Search controls
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
-        published_after = st.date_input("Show news published after:", 
-                                      value=datetime.now() - timedelta(days=7),
-                                      max_value=datetime.now())
+        # Date picker with default to 7 days ago
+        default_date = datetime.now() - timedelta(days=7)
+        published_after = st.date_input(
+            "Show news published after:",
+            value=default_date,
+            max_value=datetime.now(),
+            format="YYYY-MM-DD"  # Explicitly set format
+        )
     with col2:
         st.write("")  # Add some spacing
         st.write("")  # Add some spacing
@@ -96,7 +100,9 @@ def main():
     # Fetch news when button is clicked
     if fetch_clicked:
         with st.spinner("Fetching latest news..."):
-            articles = fetch_news(api_token, published_after.strftime("%Y-%m-%d"), num_articles)
+            # Convert date to string in correct format
+            date_str = published_after.strftime("%Y-%m-%d")
+            articles = fetch_news(api_token, date_str, num_articles)
             st.session_state.articles = articles
     
     # Display articles
@@ -160,15 +166,13 @@ def load_company_data(uploaded_file=None):
         else:
             # Try loading from local file first
             try:
-                df = pd.read_csv("companies.csv")
+                df = pd.read_csv(COMPANIES_FILE, encoding='utf-8')
                 st.success(f"✅ Successfully loaded {len(df)} companies from local file")
+                return df
             except Exception as e:
-                try:
-                    df = pd.read_csv(GITHUB_CSV_URL)
-                    st.success(f"✅ Successfully loaded {len(df)} companies from GitHub")
-                except Exception as e:
-                    st.error("❌ Failed to load companies data")
-                    return pd.DataFrame()
+                st.error("❌ Failed to load companies data")
+                st.info("Please upload a companies CSV file using the uploader in the sidebar")
+                return pd.DataFrame()
 
         # Ensure required columns exist
         required_columns = ['Company_Code', 'Company_Name']
@@ -198,35 +202,30 @@ def fetch_news(api_token, published_after, limit=3):
         st.error("❌ API Token is missing. Please add your MarketAux API token to .streamlit/secrets.toml")
         st.info("Add this line to your secrets.toml:\nMARKETAUX_TOKEN = 'your_api_token_here'")
         return []
-    
-    # Format date as YYYY-MM-DD for API
-    try:
-        if isinstance(published_after, str):
-            date_obj = datetime.strptime(published_after, "%Y-%m-%d")
-        else:
-            date_obj = published_after
-        formatted_date = date_obj.strftime("%Y-%m-%d")
-    except Exception as e:
-        st.error(f"Invalid date format: {published_after}")
-        return []
         
     params = {
         "api_token": api_token,
         "countries": "sa",
         "language": "en",
         "limit": limit,
-        "published_after": formatted_date
+        "published_after": published_after  # Should be in YYYY-MM-DD format
     }
     
     try:
+        st.info(f"Fetching news published after {published_after}...")  # Debug info
         response = requests.get(NEWS_API_URL, params=params)
         data = response.json()
         
         if 'error' in data:
             error_msg = data['error'].get('message', 'Unknown error')
             st.error(f"API Error: {error_msg}")
-            if 'published_after' in error_msg.lower():
-                st.info("Try using a different date format or range")
+            
+            # Show the actual parameters being sent for debugging
+            st.info("Debug info:")
+            st.json({
+                "URL": NEWS_API_URL,
+                "Parameters": params
+            })
             return []
             
         articles = data.get("data", [])
