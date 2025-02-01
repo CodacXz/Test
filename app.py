@@ -52,6 +52,29 @@ def load_company_data(uploaded_file=None):
         st.error(traceback.format_exc())
         return pd.DataFrame()
 
+def find_companies_in_text(text, companies_df):
+    """Find all companies mentioned in the text"""
+    if companies_df.empty:
+        return []
+    
+    text = text.lower()
+    mentioned_companies = []
+    
+    # Search for each company in the text
+    for _, row in companies_df.iterrows():
+        company_name = str(row['Company_Name']).lower()
+        company_code = str(row['Company_Code']).zfill(4)  # Ensure 4-digit format
+        
+        # Check if company name or code is in text
+        if company_name in text or company_code in text:
+            mentioned_companies.append({
+                'code': company_code,  # This will be 4 digits
+                'name': row['Company_Name'],
+                'symbol': f"{company_code}.SR"  # Add Saudi market suffix
+            })
+    
+    return mentioned_companies
+
 def find_company_code(text, companies_df):
     """Find company code from news text"""
     if companies_df.empty:
@@ -125,14 +148,15 @@ def fetch_news(published_after, limit=3):
 
 def get_stock_data(symbol, period='1mo'):
     """Fetch stock data and calculate technical indicators"""
-    # Add .SAU suffix for Saudi stocks
-    symbol = f"{symbol}.SAU"
     try:
+        # Format symbol for Saudi market
+        symbol = str(symbol).zfill(4) + ".SR"  # Saudi market uses 4 digits + .SR
+        
         # Get stock data
         stock = yf.Ticker(symbol)
         df = stock.history(period=period)
         if df.empty:
-            return None, "No stock data available"
+            return None, f"No stock data available for {symbol}"
         
         # Calculate technical indicators
         # MACD
@@ -151,7 +175,7 @@ def get_stock_data(symbol, period='1mo'):
         
         return df, None
     except Exception as e:
-        return None, str(e)
+        return None, f"Error fetching data for {symbol}: {str(e)}"
 
 def analyze_technical_indicators(df):
     """Analyze technical indicators and generate trading signals"""
@@ -183,7 +207,7 @@ def analyze_technical_indicators(df):
     
     return signals
 
-def plot_stock_analysis(df, company_name):
+def plot_stock_analysis(df, company_name, symbol):
     """Create an interactive plot with price and indicators"""
     fig = go.Figure()
     
@@ -204,8 +228,8 @@ def plot_stock_analysis(df, company_name):
                             line=dict(color='gray', dash='dash')))
     
     fig.update_layout(
-        title=f'{company_name} - Price and Technical Indicators',
-        yaxis_title='Price',
+        title=f'{company_name} ({symbol}) - Price and Technical Indicators',
+        yaxis_title='Price (SAR)',
         xaxis_title='Date',
         template='plotly_dark'
     )
@@ -244,7 +268,7 @@ def display_article(article, companies_df):
     
     if mentioned_companies:
         for company in mentioned_companies:
-            st.markdown(f"### Company Analysis: {company['name']} ({company['code']})")
+            st.markdown(f"### Company Analysis: {company['name']} ({company['symbol']})")
             
             # Get stock data and technical analysis
             df, error = get_stock_data(company['code'])
@@ -253,8 +277,13 @@ def display_article(article, companies_df):
                 continue
             
             if df is not None:
+                # Show current stock price
+                latest_price = df['Close'][-1]
+                st.metric("Current Price", f"{latest_price:.2f} SAR", 
+                         f"{((latest_price - df['Close'][-2])/df['Close'][-2]*100):.2f}%")
+                
                 # Plot stock chart
-                fig = plot_stock_analysis(df, company['name'])
+                fig = plot_stock_analysis(df, company['name'], company['symbol'])
                 st.plotly_chart(fig)
                 
                 # Technical Analysis Signals
@@ -278,6 +307,15 @@ def display_article(article, companies_df):
                     st.error("🔴 Overall Bearish: Technical indicators and news sentiment suggest negative pressure")
                 else:
                     st.warning("🟡 Neutral: Mixed signals from technical indicators and news sentiment")
+                
+                # Volume Analysis
+                avg_volume = df['Volume'].mean()
+                latest_volume = df['Volume'][-1]
+                volume_change = ((latest_volume - avg_volume) / avg_volume) * 100
+                
+                st.markdown("### Volume Analysis")
+                st.metric("Trading Volume", f"{int(latest_volume):,}", 
+                         f"{volume_change:.1f}% vs 30-day average")
     
     # Article link
     st.markdown(f"[Read full article]({url})")
