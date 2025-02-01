@@ -7,15 +7,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # API Configuration
 NEWS_API_URL = "https://api.marketaux.com/v1/news/all"
-
-# Load API token
-try:
-    API_TOKEN = st.secrets["MARKETAUX_API_KEY"]
-    if not API_TOKEN:
-        st.error("API Token is empty. Please check your .streamlit/secrets.toml file")
-except Exception as e:
-    st.error("Error loading API token. Please check your .streamlit/secrets.toml file")
-    API_TOKEN = ""
+API_TOKEN = "W737FzQuSSOm3MyYYLJ1kt7csT8NOwxl2WL7Gl6x"  # Temporary direct key for testing
 
 # GitHub raw file URL for the companies CSV file
 GITHUB_CSV_URL = "https://raw.githubusercontent.com/CodacXz/Test/main/saudi_companies.csv?raw=true"
@@ -106,10 +98,6 @@ def analyze_sentiment(text):
 
 def fetch_news(published_after, limit=3):
     """Fetch news articles from MarketAux API"""
-    if not API_TOKEN:
-        st.error("Please set up your MarketAux API key in .streamlit/secrets.toml")
-        return []
-        
     params = {
         "api_token": API_TOKEN,
         "countries": "sa",
@@ -121,7 +109,11 @@ def fetch_news(published_after, limit=3):
     try:
         response = requests.get(NEWS_API_URL, params=params, timeout=10)
         response.raise_for_status()
-        return response.json().get("data", [])
+        data = response.json()
+        if 'error' in data:
+            st.error(f"API Error: {data['error']['message']}")
+            return []
+        return data.get("data", [])
     except Exception as e:
         st.error(f"Error fetching news: {e}")
         return []
@@ -211,11 +203,8 @@ def main():
     st.sidebar.write("App Version: 1.0.5")
     
     # API status
-    if API_TOKEN:
-        st.sidebar.success("✅ API Token loaded")
-    else:
-        st.sidebar.error("⚠️ API Token not found")
-
+    st.sidebar.success("✅ API Token loaded")
+    
     # Add GitHub information
     st.sidebar.markdown("---")
     st.sidebar.markdown("""
